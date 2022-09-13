@@ -7,10 +7,13 @@ def split_video(filename, destination, split_frames, newfile='newfile', subdir=F
     new_files = ['control', 'stim', 'post']
 
     if subdir != False:
-        print('[CREATING SUBDIR]: ' + subdir)
-        subdir = destination + '/' + subdir + '/'
-        if not os.path.exists(subdir):
-            os.makedirs(subdir)
+        if type(destination) != list:
+            print('[CREATING SUBDIR]: ' + subdir)
+            subdir = destination + '/' + subdir + '/'
+            if not os.path.exists(subdir):
+                os.makedirs(subdir)
+        else:
+            print('[ERROR]: destination is of type <list>')
     else:
         subdir = destination
     
@@ -27,11 +30,17 @@ def split_video(filename, destination, split_frames, newfile='newfile', subdir=F
     input_stream = ffmpeg.input(filename)
 
     pts = "PTS-STARTPTS"
+
+    d_count = 0
     for condition in new_files:
         print('[CREATING VIDEO]:', condition.upper())
         print('[SPLITTING]: \n -START FRAME:', split_list[0], ' \n -END FRAME:', split_list[1])
         video = input_stream.trim(start=split_list[0], end=split_list[1]).setpts(pts)
-        output = ffmpeg.output(video, subdir + '/' + condition + newfile + '.mp4', format="mp4")
+        if type(destination) != list:
+            output = ffmpeg.output(video, subdir + '/' + condition + newfile + '.mp4', format="mp4")
+        else:
+            output = ffmpeg.output(video, subdir[d_count] + '/' + newfile + '.mp4', format="mp4")
+            d_count += 1
         output.run()
         split_list = split_list[1:]
         

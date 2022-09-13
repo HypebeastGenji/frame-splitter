@@ -5,28 +5,17 @@ import os
 import matplotlib.pyplot as plt
 import yaml
 import scipy.stats as scs
+
 from video import split_video
+from utils import get_session_name, h5print
 
 # so np arrays dont truncate
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
 
-def h5printR(item, leading = ''):
-    for key in item:
-        if isinstance(item[key], h5py.Dataset):
-            print(leading + key + ': ' + str(item[key].shape))
-        else:
-            print(leading + key)
-            h5printR(item[key], leading + '  ')
 
-# Print structure of a `.h5` file            
-def h5print(filename):
-    with h5py.File(filename, 'r') as h:
-        print(filename)
-        h5printR(h, '  ')
-
-## READ WITH H5PY
+## READ H5 FILE WITH H5PY
 # h5print(filename)
 
 
@@ -101,45 +90,25 @@ def split_h5(filename, cut_points, key=None, print_summary=False):
 # split_data = split_h5(filename, [18000, 36000], print_summary=False)
 
 
-def check_dict(split_data):
-    keys = ['frames', 'frames_mask', 'metadata', 'scalars', 'timestamps']
-    for key in keys:
-        for i in split_data[key]:
-            if key == 'scalars':
-                print(key)
-                print(i)
-                print(len(split_data[key][i]))
-                for j in split_data[key][i]:
-                    print(len(j))
-
-            else:
-                print(key)
-                print(len(i))
-
-
-def clone_file(old_file):
-    with h5py.File('newfile.h5', 'w') as new_h5:
-        with h5py.File(old_file, 'r') as old_h5:
-            keys = old_h5.keys()
-            datasets = []
-            for key in keys:
-                if isinstance(old_h5[key], h5py.Dataset):
-                    new_h5.create_dataset(key, data=old_h5[key]) # change to split data
-                    datasets.append(key)
-                else:
-                    if key not in datasets:
-                        print(key)
-                        # new_h5.create_group('/'+key)
-                        old_h5.copy(old_h5[key], new_h5['/'])
-            print('[SUCCESS]: NEW FILE CREATED')
-
-
-
-def create_file(old_file, split_data, location, newfile='newfile', check_files=True):
+def create_file(old_file, split_data, location, newfile='newfile', proc=False, check_files=True):
     new_files = ['control', 'stim', 'post']
+    destinations = []
     for i in range(len(new_files)):
-        print('[CREATING FILE]: ' + new_files[i] + '-' + newfile + '.h5')
-        with h5py.File(location + '/' +new_files[i] + '-' + newfile + '.h5', 'w') as new_h5:
+
+        if proc == True:
+            print('[CREATING SUBDIR]: /proc')
+            session_folder = get_session_name(old_file)
+            proc_folder = location + '/' + session_folder + ' (' + new_files[i] + ')' + '/proc' 
+            if not os.path.exists(proc_folder):
+                os.makedirs(proc_folder)
+            destination = proc_folder
+            destinations.append(destination)
+            new_file_name = 'results_00'
+        else:
+            new_file_name = new_files[i] + '-' + newfile
+
+        print('[CREATING FILE]: ' + new_file_name + '.h5')
+        with h5py.File(destination + '/' + new_file_name + '.h5', 'w') as new_h5:
             with h5py.File(old_file, 'r') as old_h5:
                 keys = old_h5.keys()
                 datasets = []
@@ -183,16 +152,22 @@ def create_file(old_file, split_data, location, newfile='newfile', check_files=T
                                     # update_dict['parameters'] = {'flip_classifier': 'largemicewithfibre.pkl'} MAY NEED TO CHANGE AS THIS IS NOT ORIGINAL ONE USED IN EXTRACTION
 
                                     corresponding_yaml = old_file.replace('.h5', '.yaml')
-                                    update_yaml(corresponding_yaml, location, update_dict, newfile=new_files[i] + '-' + newfile)
+                                    update_yaml(corresponding_yaml, destination, update_dict, newfile=new_file_name)
 
-                print('[NEW FILE CREATED]:', new_files[i]+'-newfile.h5')
+                print('[NEW FILE CREATED]:', new_files[i] + '-' + newfile + '.h5')
+        
 
-    if check_files == True:
-        h5print(location+'/'+'control-'+newfile+'.h5')
-        print()
-        h5print(location+'/'+'stim-'+newfile+'.h5')
-        print()
-        h5print(location+'/'+'post-'+newfile+'.h5')
+        if check_files == True:
+            if proc == False:
+                print()
+                h5print(location+'/'+new_files[i]+'-'+newfile+'.h5')
+                print()
+            else:
+                print()
+                h5print(destinations[i]+'/'+new_file_name+'.h5')
+                print()
+                print("YES")
+    return destinations
 
 ####### UNCOMMENT
 # create_file(split_data, './finals')
@@ -210,6 +185,8 @@ def check_finals(filename):
 # check_finals('control-results_001.h5')
 
 # update_dict = {uuid: '', metadata: {SessionName: ''}}
+
+# subdir must start with '/' (but not end)
 def update_yaml(oldfile, destination, update_dict, newfile='newfile', subdir=False):
     with open(oldfile) as old_yml:
         content = yaml.safe_load(old_yml)
@@ -225,7 +202,7 @@ def update_yaml(oldfile, destination, update_dict, newfile='newfile', subdir=Fal
         #         content[key]['flip_classifier'] = update_dict[key]['flip_classifier']
 
     if subdir != False:
-        subdir = destination + '/yamls/'
+        subdir = destination + subdir + '/'
         if not os.path.exists(subdir):
             os.makedirs(subdir)
     else:
@@ -246,17 +223,8 @@ def main(files, destination):
     total_sessions = len(files)
     for filename in files:
 
-        new_file_name = filename[:-19].replace(" ", "-")
-        file_start = new_file_name.rfind('/') + 1
-        new_file_name = new_file_name[file_start:]
-
+        new_file_name = get_session_name(filename)
         video_name = filename.replace('.h5', '.mp4')
-        
-        print('[CREATING SUBDIR]: /proc')
-        proc_folder = destination + '/' + new_file_name + '/proc' 
-        if not os.path.exists(proc_folder):
-            os.makedirs(proc_folder)
-        destination = proc_folder
 
         print(new_file_name)
         print(destination)
@@ -279,9 +247,10 @@ def main(files, destination):
         # create_file(split_data, './finals', newfile='results_00'+str(session_count))
         # by session name
 
-        create_file(filename, split_data, destination, newfile=new_file_name)
+        # updated create_file function to return list of destinations for video function
+        destinations = create_file(filename, split_data, destination, proc=True, newfile=new_file_name)
  
-        split_video(video_name, destination, [18000, 36000])
+        split_video(video_name, destinations, [18000, 36000], newfile='results_00')
 
         print("------------------------------------------------------------------------")
 
@@ -386,7 +355,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ../../ -- raw results
 
 
-extracted_dicts = extract_scalars('./finals', save_to_csv=False)
+# extracted_dicts = extract_scalars('./finals', save_to_csv=False)
 
 
 
