@@ -11,10 +11,6 @@ from video import split_video
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
-# filename = "./proc/results_00.h5"
-# filename = "../../session_20190203090326 WT4 10Hz/proc/results_00.h5"
-
-
 
 def h5printR(item, leading = ''):
     for key in item:
@@ -143,7 +139,7 @@ def create_file(old_file, split_data, location, newfile='newfile', check_files=T
     new_files = ['control', 'stim', 'post']
     for i in range(len(new_files)):
         print('[CREATING FILE]: ' + new_files[i] + '-' + newfile + '.h5')
-        with h5py.File(location+'/'+new_files[i] + '-' + newfile + '.h5', 'w') as new_h5:
+        with h5py.File(location + '/' +new_files[i] + '-' + newfile + '.h5', 'w') as new_h5:
             with h5py.File(old_file, 'r') as old_h5:
                 keys = old_h5.keys()
                 datasets = []
@@ -214,7 +210,7 @@ def check_finals(filename):
 # check_finals('control-results_001.h5')
 
 # update_dict = {uuid: '', metadata: {SessionName: ''}}
-def update_yaml(oldfile, destination, update_dict, newfile='newfile'):
+def update_yaml(oldfile, destination, update_dict, newfile='newfile', subdir=False):
     with open(oldfile) as old_yml:
         content = yaml.safe_load(old_yml)
 
@@ -228,9 +224,12 @@ def update_yaml(oldfile, destination, update_dict, newfile='newfile'):
         #     if 'flip_classifier' in update_dict[key]:
         #         content[key]['flip_classifier'] = update_dict[key]['flip_classifier']
 
-    subdir = destination + '/yamls/'
-    if not os.path.exists(subdir):
-        os.makedirs(subdir)
+    if subdir != False:
+        subdir = destination + '/yamls/'
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+    else:
+        subdir = destination + '/'
     
     print("[CREATING YAML]")
     with open(subdir + newfile + '.yaml', "w") as new_yaml:
@@ -242,7 +241,7 @@ def update_yaml(oldfile, destination, update_dict, newfile='newfile'):
 # update_yaml('./proc/results_00.yaml', './check', update_dict)
 
 
-def main(files):
+def main(files, destination):
     session_count = 1
     total_sessions = len(files)
     for filename in files:
@@ -250,6 +249,17 @@ def main(files):
         new_file_name = filename[:-19].replace(" ", "-")
         file_start = new_file_name.rfind('/') + 1
         new_file_name = new_file_name[file_start:]
+
+        video_name = filename.replace('.h5', '.mp4')
+        
+        print('[CREATING SUBDIR]: /proc')
+        proc_folder = destination + '/' + new_file_name + '/proc' 
+        if not os.path.exists(proc_folder):
+            os.makedirs(proc_folder)
+        destination = proc_folder
+
+        print(new_file_name)
+        print(destination)
         
         print("[STARTING MAIN]: " + new_file_name)
         print("------------------------------------------------------------------------")
@@ -268,22 +278,17 @@ def main(files):
         # by session count
         # create_file(split_data, './finals', newfile='results_00'+str(session_count))
         # by session name
-        
-        destination = './finals'
-        test_destination = './check' # for testing
-        external_destination = '/Volumes/NO NAME/Research/Moseq/Ephrin 10Hz wire'
 
-        create_file(filename, split_data, test_destination, newfile=new_file_name)
+        create_file(filename, split_data, destination, newfile=new_file_name)
+ 
+        split_video(video_name, destination, [18000, 36000])
 
-        # video_name = filename.replace('.h5', '.mp4')
-
-        # split_video(filename, "./finals", [18000, 36000])
         print("------------------------------------------------------------------------")
 
         session_count += 1
         break # for testing
 
-def start(base_dir):
+def start(base_dir, destination):
 
     files = os.listdir(base_dir)
     session_files = []
@@ -299,7 +304,7 @@ def start(base_dir):
     confirmation = input("confirm session files? (y/n): ")
     if confirmation.lower() == 'y':
         print('[CONFIRMED]')
-        main(session_files)
+        main(session_files, destination)
     elif confirmation.lower() == 'n':
         print('[REJECTED]')
         quit()
@@ -309,11 +314,21 @@ def start(base_dir):
 
 ## --------------------------------------------------START--------------------------------------------------##
 
+# base_dir
 wt_10Hz_basedir = '../../' # WT 10Hz wire
 ephrin_10Hz_basedir = '../../../ephrin 10Hz wire/'  # Ephrin
-wt_sham = '../../../../Sham wire/WT sham wire/'
+wt_sham = '../../../../Sham wire/WT sham wire/' # WT Sham
 
-# start(wt_sham)
+# destinations
+final_destination = './finals'
+external_destination = '/Volumes/NO NAME/Research/Moseq/Ephrin 10Hz wire'
+
+# testing base_dir
+local_test = '../../testing/'
+# testing destination
+test_destination = '../../testing_finals' # for testing
+
+start(local_test, test_destination)
 
 ## --------------------------------------------------START--------------------------------------------------##
 
@@ -542,174 +557,3 @@ def plot_raw_scalars(session_dict, scalar):
 
 
 # plot_raw_scalars(raw_extract_scalars(), 'velocity_2d_mm')
-
-
-### --------------------------- OLD FUNCTION --------------------------- ###
-def split_h5(filename, cut_points, key=None, save_to_csv=False, frames_to_df=False):
-    # df = pd.read_hdf(filename) DOESNT WORK WITH RESULTS_00.h5
-    with h5py.File(filename, 'r') as f:
-
-        # GET NUMBER OF FRAMES
-        frame_num = f['frames'].shape[0]
-        print("Frames in session:", frame_num)
-
-        
-        if key == None:
-            keys = f.keys()
-        else:
-            if key not in f.keys():
-                print("NOT A VALID KEY")
-                print("Please use an available key in this dataset:", f.keys())
-                print("QUITTING")
-                quit()
-            else:
-                keys = [key]
-        print("keys:",keys)
-        
-        # LOOP THROUGH ALL KEYS
-        for key in keys:
-            
-    
-        # RESHAPING FOR 3D ARRAYS
-            if key == 'frames':
-                print("[SELECTED]: FRAMES")
-
-                # FRAME DATA
-                frames = f[key]
-                print(len(frames))
-                print(frames.shape)
-
-                # SPLIT BY FRAME
-                control_frames = frames[:cut_points[0]]
-                stim_frames = frames[cut_points[0]:cut_points[1]]
-                post_frames = frames[cut_points[1]:]
-                
-                print(control_frames)
-                print(len(control_frames))
-                print("--------------------------------------")
-                print(stim_frames)
-                print(len(stim_frames))
-                print("--------------------------------------")
-                print(post_frames)
-                print(len(post_frames))
-                print("--------------------------------------")
-               
-                
-                # RESHAPE 3D FRAME ARRAY AND CONVERT TO DF
-                if frames_to_df == True:
-                    print(frames.shape)
-                    reshaped_frames = np.reshape(frames, (-1, 80*80))
-                    print(reshaped_frames.shape)
-                    df = pd.DataFrame(np.array(reshaped_frames))
-                    print(df)
-                    if save_to_csv == True:
-                        # chanege to save as h5
-                        df.to_csv(key+".csv", index=False)
-
-                
-            
-            elif key == 'frames_mask':
-                print("[SELECTED]: FRAMES_MASK")
-                # FRAME DATA
-                frames_mask = f[key]
-                print(len(frames_mask))
-                print(frames_mask.shape)
-
-                # SPLIT BY FRAME
-                control_frames_mask = frames_mask[:cut_points[0]]
-                stim_frames_mask = frames_mask[cut_points[0]:cut_points[1]]
-                post_frames_mask = frames_mask[cut_points[1]:]
-                
-                print(control_frames_mask)
-                print(len(control_frames_mask))
-                print("--------------------------------------")
-                print(stim_frames_mask)
-                print(len(stim_frames_mask))
-                print("--------------------------------------")
-                print(post_frames_mask)
-                print(len(post_frames_mask))
-                print("--------------------------------------")
-            
-
-            elif key == 'metadata':
-                print("[SELECTED]: METADATA")
-                acquisition, extraction, uuid = f[key]['acquisition'], f[key]['extraction'], f[key]['uuid']
-                
-                # FLIP DATA
-                flip_data = extraction['flips']
-                print(flip_data)
-
-                # FLIP DF
-                flip_df = pd.DataFrame(flip_data)
-                print(flip_df)
-
-                # SLICE BY FRAME
-                control_flip = flip_data[:cut_points[0]]
-                stim_flip = flip_data[cut_points[0]:cut_points[1]]
-                post_flip = flip_data[cut_points[1]:]
-
-                # PRINT TO VERIFY
-                print(control_flip)
-                print(len(control_flip))
-                print("--------------------------------------")
-                print(stim_flip)
-                print(len(stim_flip))
-                print("--------------------------------------")
-                print(post_flip)
-                print(len(post_flip))
-                print("--------------------------------------")
-
-
-
-            elif key == 'scalars':
-                print("[SELECTED]: SCALARS")
-                scalars = f[key]
-                for i in scalars:
-
-                    # SCALAR DATA
-                    scalar_data = scalars[i]
-                    print(scalar_data)
-                    print("--------------------------------------")
-
-                    # SCALAR DF
-                    scalar_data_df = pd.DataFrame(scalar_data)
-                    print(scalar_data_df)
-
-                    # SLICE BY FRAME
-                    control_scalar = scalar_data[:cut_points[0]]
-                    stim_scalar = scalar_data[cut_points[0]:cut_points[1]]
-                    post_scalar = scalar_data[cut_points[1]:]
-
-                    print(control_scalar)
-                    print(len(control_scalar))
-                    print("--------------------------------------")
-                    print(stim_scalar)
-                    print(len(stim_scalar))
-                    print("--------------------------------------")
-                    print(post_scalar)
-                    print(len(post_scalar))
-                    print("--------------------------------------")
-
-            elif key == 'timestamps':
-                print("[SELECTED]: TIMESTAMPS")
-                timestamps = f[key]
-                print(timestamps)
-                timestamp_df = pd.DataFrame(timestamps)
-                print(timestamp_df)
-
-                control_timestamps = timestamps[:cut_points[0]]
-                stim_timestamps = timestamps[cut_points[0]:cut_points[1]]
-                post_timestamps = timestamps[cut_points[1]:]
-                print("Split Timestamps")
-                print("Control:", control_timestamps[0], "-", control_timestamps[-1], "-> frame_num", len(control_timestamps))
-                print("Stim:", stim_timestamps[0], "-", stim_timestamps[-1], "-> frame_num", len(stim_timestamps))
-                print("Post:", post_timestamps[0], "-", post_timestamps[-1], "-> frame_num", len(post_timestamps))
-                
-
-
-    # df = pd.DataFrame(np.array(h5py.File(filename)['frames']))
-    # print(df)
-
-
-## SPLIT H5 - Can specify key
-# split_h5(filename, [18000, 36000])

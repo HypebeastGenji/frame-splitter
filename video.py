@@ -3,13 +3,16 @@ import ffmpeg
 
 # raw_video_path = './videos/results_00.mp4'
 
-def split_video(filename, destination, split_frames, newfile='newfile'):
+def split_video(filename, destination, split_frames, newfile='newfile', subdir=False):
     new_files = ['control', 'stim', 'post']
 
-    print('[CREATING SUBDIR]: /mp4s')
-    subdir = destination + '/mp4s/'
-    if not os.path.exists(subdir):
-        os.makedirs(subdir)
+    if subdir != False:
+        print('[CREATING SUBDIR]: ' + subdir)
+        subdir = destination + '/' + subdir + '/'
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+    else:
+        subdir = destination
     
     probe_result = ffmpeg.probe(filename)
     duration = probe_result.get("format", {}).get("duration", None)
@@ -20,7 +23,6 @@ def split_video(filename, destination, split_frames, newfile='newfile'):
         frame_to_sec = frame / 30
         split_list.append(frame_to_sec)
     split_list.append(duration)
-
 
     input_stream = ffmpeg.input(filename)
 
@@ -33,5 +35,5 @@ def split_video(filename, destination, split_frames, newfile='newfile'):
         output.run()
         split_list = split_list[1:]
         
-
-# split_video(raw_video_path, "./finals", [18000, 36000])
+        
+# split_video(raw_video_path, "../finals", [18000, 36000])
