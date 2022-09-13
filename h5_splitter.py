@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import yaml
 import scipy.stats as scs
+from video import split_video
 
 # so np arrays dont truncate
 import sys
@@ -273,20 +274,22 @@ def main(files):
         external_destination = '/Volumes/NO NAME/Research/Moseq/Ephrin 10Hz wire'
 
         create_file(filename, split_data, test_destination, newfile=new_file_name)
+
+        # video_name = filename.replace('.h5', '.mp4')
+
+        # split_video(filename, "./finals", [18000, 36000])
         print("------------------------------------------------------------------------")
 
         session_count += 1
         break # for testing
 
-def start():
-
-    base_dir = '../../' # WT 10Hz wire
-    # base_dir = '../../../ephrin 10Hz wire/'  # Ephrin
+def start(base_dir):
 
     files = os.listdir(base_dir)
     session_files = []
-    bad_sessions = ['session_20190205095213 WT3 10Hz', 'session_20190206115259 WT6 10Hz'] # WT
+    # bad_sessions = ['session_20190205095213 WT3 10Hz', 'session_20190206115259 WT6 10Hz'] # WT 10Hz
     # bad_sessions = ['session_20190218101113 3883 10Hz coil came off', 'session_20190218112308 3907 10Hz coil came off']
+    bad_sessions = ['session_20190113151744 WT2 Sham', 'session_20190113160334 WT4 Sham', 'session_20190113163631 WT5 Sham', 'session_20190113170857 WT1 Sham', 'session_20190113174353 WT6 Sham', 'session_20190113182616 WT7 Sham', 'session_20190113190625 WT3 Sham', 'session_20190128093115 WT5 sham', 'session_20190128100411 WT6 sham', 'session_20190128103838 WT4 sham', 'session_20190131104916 WT3 Sham coil fell off', 'session_20190131121155 WT5 Sham', 'session_20190131124434 WT6 Sham coil fell off', 'session_20190131162118 WT3 Sham coil fell off', 'session_20190131165326 WT6 Sham coil fell off'] # WT 10Hz sham
     for session in files:
         if session[:7] == 'session' and session not in bad_sessions:
             result_filepath = base_dir + session + '/proc/results_00.h5'
@@ -304,8 +307,15 @@ def start():
         print("[ERROR]: PLEASE ENTER (y/n): ")
         quit()
 
-start()
+## --------------------------------------------------START--------------------------------------------------##
 
+wt_10Hz_basedir = '../../' # WT 10Hz wire
+ephrin_10Hz_basedir = '../../../ephrin 10Hz wire/'  # Ephrin
+wt_sham = '../../../../Sham wire/WT sham wire/'
+
+# start(wt_sham)
+
+## --------------------------------------------------START--------------------------------------------------##
 
 
 def extract_scalars(base_dir, raw=False, save_to_csv=False):
@@ -330,6 +340,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
             session_title = condition_session_title
         else:
             condition_session_title = session.split('.')[0]
+
             session_title = session[session.index("-")+1:-3]
 
         if session_title not in session_dicts:
@@ -359,7 +370,11 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ./finals -- The grouped results (control, stim, post)
 # ../../ -- raw results
 
+
 extracted_dicts = extract_scalars('./finals', save_to_csv=False)
+
+
+
 
 def simple_scalar_analysis(session_dict, group, scalar):
     for session in session_dict:
