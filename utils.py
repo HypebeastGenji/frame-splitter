@@ -59,3 +59,10 @@ def clone_file(old_file):
                         # new_h5.create_group('/'+key)
                         old_h5.copy(old_h5[key], new_h5['/'])
             print('[SUCCESS]: NEW FILE CREATED')
+
+
+# will populate create empty depth.dat and depth_ts.txt files
+def populate_depth(destination, files=['depth.dat', 'depth_ts.txt']):
+    for file in files:
+        with open(destination + '/' + file, mode='a'): 
+            pass

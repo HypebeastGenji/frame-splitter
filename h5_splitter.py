@@ -4,10 +4,11 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import yaml
+import json
 import scipy.stats as scs
 
 from video import split_video
-from utils import get_session_name, h5print
+from utils import get_session_name, h5print, populate_depth
 
 # so np arrays dont truncate
 import sys
@@ -97,13 +98,24 @@ def create_file(old_file, split_data, location, newfile='newfile', proc=False, c
 
         if proc == True:
             print('[CREATING SUBDIR]: /proc')
-            session_folder = get_session_name(old_file)
-            proc_folder = location + '/' + session_folder + ' (' + new_files[i] + ')' + '/proc' 
+
+            # create session folder path and with proc subdir
+            session_folder = location + '/' + get_session_name(old_file) + ' (' + new_files[i] + ')'
+            proc_folder =  session_folder + '/proc' 
             if not os.path.exists(proc_folder):
                 os.makedirs(proc_folder)
             destination = proc_folder
             destinations.append(destination)
+            
+            # populate session folder with empty depth.dat and depth_ts.txt
+            populate_depth(session_folder)
+
+            # update session name in metadata.json and add to session folder
+            json_meta_path = old_file[:-18] + 'metadata.json'
+            update_json(json_meta_path, session_folder, new_files[i])
+
             new_file_name = 'results_00'
+
         else:
             new_file_name = new_files[i] + '-' + newfile
 
@@ -218,6 +230,20 @@ def update_yaml(oldfile, destination, update_dict, newfile='newfile', subdir=Fal
 # update_yaml('./proc/results_00.yaml', './check', update_dict)
 
 
+def update_json(oldfile, destination, condition, newfile='metadata'):
+
+    print('[READING METADATA.JSON]...')
+    with open(oldfile, 'r') as json_file:
+        data = json.load(json_file)
+
+    data['SessionName'] = data['SessionName'] + ' (' + condition + ')'
+
+    print('[CREATING NEW METADATA.JSON]...')
+    with open(destination + '/' + newfile + '.json', 'a') as new_json:
+        json.dump(data, new_json)
+
+
+
 def main(files, destination):
     session_count = 1
     total_sessions = len(files)
@@ -255,7 +281,7 @@ def main(files, destination):
         print("------------------------------------------------------------------------")
 
         session_count += 1
-        break # for testing
+        # break # for testing
 
 def start(base_dir, destination):
 
