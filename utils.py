@@ -66,3 +66,33 @@ def populate_depth(destination, files=['depth.dat', 'depth_ts.txt']):
     for file in files:
         with open(destination + '/' + file, mode='a'): 
             pass
+
+
+
+''' MIGHT NEED LATER
+
+try:
+    del new_h5['/metadata/extraction/flips']
+    new_h5.create_dataset('metadata/extraction/flips', data=dataset[i])
+except KeyError:
+    print("[ERROR]: USING OLD H5 FILE FORMAT")
+    cont = input("Would you like to continue anyway? (y/n): ")
+    if cont == 'y':
+        del new_h5['/metadata/flips']
+        new_h5.create_dataset('metadata/flips', data=dataset[i])
+    else:
+        quit()
+
+
+try:
+    flip_data = data['extraction']['flips']
+    # flip_data = data['extraction/flips'] CAN USE '/' to move down hierarchy
+except KeyError:
+    print("[ERROR]: USING OLD H5 FILE FORMAT")
+    cont = input("Would you like to continue anyway? (y/n): ")
+    if cont == 'y':
+        flip_data = data['flips']
+    else:
+        quit()
+
+'''

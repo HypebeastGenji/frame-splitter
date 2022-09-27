@@ -5,9 +5,9 @@ import os
 import matplotlib.pyplot as plt
 import yaml
 import json
-import scipy.stats as scs
+# import scipy.stats as scs
 
-from video import split_video
+# from video import split_video
 from utils import get_session_name, h5print, populate_depth
 
 # so np arrays dont truncate
@@ -161,7 +161,7 @@ def create_file(old_file, split_data, location, newfile='newfile', proc=False, c
                                     update_dict = {}
                                     update_dict['uuid'] = new_uuid.decode("utf-8")
                                     update_dict['metadata'] = {'SessionName': new_session_name.decode("utf-8")}
-                                    # update_dict['parameters'] = {'flip_classifier': 'largemicewithfibre.pkl'} MAY NEED TO CHANGE AS THIS IS NOT ORIGINAL ONE USED IN EXTRACTION
+                                    # update_dict['parameters'] = {'flip_classifier': '/fs03/am17/jacks/Moseq/Extraction/data/flip_classifier_k2_largemicewithfibre.pkl'} # MAY NEED TO CHANGE AS THIS IS NOT ORIGINAL ONE USED IN EXTRACTION
 
                                     corresponding_yaml = old_file.replace('.h5', '.yaml')
                                     update_yaml(corresponding_yaml, destination, update_dict, newfile=new_file_name)
@@ -289,7 +289,8 @@ def start(base_dir, destination):
     session_files = []
     # bad_sessions = ['session_20190205095213 WT3 10Hz', 'session_20190206115259 WT6 10Hz'] # WT 10Hz
     # bad_sessions = ['session_20190218101113 3883 10Hz coil came off', 'session_20190218112308 3907 10Hz coil came off']
-    bad_sessions = ['session_20190113151744 WT2 Sham', 'session_20190113160334 WT4 Sham', 'session_20190113163631 WT5 Sham', 'session_20190113170857 WT1 Sham', 'session_20190113174353 WT6 Sham', 'session_20190113182616 WT7 Sham', 'session_20190113190625 WT3 Sham', 'session_20190128093115 WT5 sham', 'session_20190128100411 WT6 sham', 'session_20190128103838 WT4 sham', 'session_20190131104916 WT3 Sham coil fell off', 'session_20190131121155 WT5 Sham', 'session_20190131124434 WT6 Sham coil fell off', 'session_20190131162118 WT3 Sham coil fell off', 'session_20190131165326 WT6 Sham coil fell off'] # WT 10Hz sham
+    # bad_sessions = ['session_20190113151744 WT2 Sham', 'session_20190113160334 WT4 Sham', 'session_20190113163631 WT5 Sham', 'session_20190113170857 WT1 Sham', 'session_20190113174353 WT6 Sham', 'session_20190113182616 WT7 Sham', 'session_20190113190625 WT3 Sham', 'session_20190128093115 WT5 sham', 'session_20190128100411 WT6 sham', 'session_20190128103838 WT4 sham', 'session_20190131104916 WT3 Sham coil fell off', 'session_20190131121155 WT5 Sham', 'session_20190131124434 WT6 Sham coil fell off', 'session_20190131162118 WT3 Sham coil fell off', 'session_20190131165326 WT6 Sham coil fell off'] # WT 10Hz sham
+    bad_sessions = ['session_20190117092631 3906 Sham', 'session_20190117100227 3928 Sham', 'session_20190117103940 3876 Sham', 'session_20190117111450 3885 Sham', 'session_20190117114725 3887 Sham', 'session_20190117122252 3897 Sham', 'session_20190128140048 3928 sham', 'session_20190128143448 3876 sham', 'session_20190128150913 3885 sham', 'session_20190128154317 3890 sham', 'session_20190128162613 3895 sham', 'session_20190128173218 3883 sham', 'session_20190128180452 3907 sham', 'session_20190128184018 3918 sham', 'session_20190131142959 3906 Sham', 'session_20190201114235 3890 Sham', 'session_20190201122324 3876 Sham', 'session_20190201130116 should be 3879 Sham', 'session_20190201133253 3883 Sham', 'session_20190201140423 3889 Sham', 'session_20190201144458 3895 Sham'] # ephrin 10Hz sham
     for session in files:
         if session[:7] == 'session' and session not in bad_sessions:
             result_filepath = base_dir + session + '/proc/results_00.h5'
@@ -323,7 +324,19 @@ local_test = '../../testing/'
 # testing destination
 test_destination = '../../testing_finals' # for testing
 
-start(local_test, test_destination)
+# data from tyler PC
+raw_ephrin = 'F:\wire 10 Hz/ephrin 10Hz wire/'
+raw_wt = 'F:\wire 10 Hz/WT 10 Hz wire/'
+raw_wt_sham = 'F:\Sham wire/WT sham wire/'
+raw_ephrin_sham = 'F:\Sham wire/ephrin sham/'
+
+# research from tyler PC
+research_ephrin = 'D:\Research/2022/Moseq/data/10Hz ephrin/'
+research_wt = 'D:\Research/2022/Moseq/data/10Hz WT/'
+research_wt_sham = 'D:\Research/2022/Moseq/data/10Hz WT sham/'
+research_ephrin_sham = 'D:\Research/2022/Moseq/data/10Hz ephrin sham/'
+
+# start(local_test, test_destination)
 
 ## --------------------------------------------------START--------------------------------------------------##
 
@@ -381,7 +394,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ../../ -- raw results
 
 
-# extracted_dicts = extract_scalars('./finals', save_to_csv=False)
+extracted_dicts = extract_scalars('./finals', save_to_csv=False)
 
 
 
