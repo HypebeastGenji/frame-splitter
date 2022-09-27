@@ -397,8 +397,6 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 extracted_dicts = extract_scalars('./finals', save_to_csv=False)
 
 
-
-
 def simple_scalar_analysis(session_dict, group, scalar):
     for session in session_dict:
         summary = session_dict[session][group].describe()
