@@ -1,7 +1,7 @@
 import os
 import ffmpeg
 
-raw_video_path = './videos/results_00.mp4'
+# raw_video_path = './videos/results_00.mp4'
 
 def split_video(filename, destination, split_frames, newfile='newfile', subdir=False):
     new_files = ['control', 'stim', 'post']
@@ -45,4 +45,4 @@ def split_video(filename, destination, split_frames, newfile='newfile', subdir=F
         split_list = split_list[1:]
         
         
-split_video(raw_video_path, "../finals", [18000, 36000])
+# split_video(raw_video_path, "../finals", [18000, 36000])

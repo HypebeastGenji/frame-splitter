@@ -1,10 +1,17 @@
-from operator import concat
 import os
 import h5py
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+
+
+GROUPS = [
+            '../data/10Hz WT/',
+            '../data/10Hz ephrin/',
+            '../data/10Hz WT sham/',
+            '../data/10Hz ephrin sham/'
+]
 
 def extract_scalars(base_dir, raw=False, save_to_csv=False):
     files = os.listdir(base_dir)
@@ -63,7 +70,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ../../ -- raw results
 
 
-extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
+# extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
 # print(extracted_dicts)
 
 
@@ -103,6 +110,8 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
     stat_list.append(controls)
     stat_list.append(stims)
     stat_list.append(posts)
+
+
     
 
     ## PLOT MEAN OF GROUP MEANS
@@ -115,6 +124,7 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
                 mean_of_means.append(np.mean(group))
                 count += 1
             plt.bar(group_condtions, mean_of_means)
+            # plt.plot(group_condtions, mean_of_means, marker='o')
             plt.title(stat.capitalize() + " " + scalar+" per frame")
             plt.xlabel("Group Condtions")
             plt.ylabel(scalar)
@@ -162,7 +172,7 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
 
     return stat_list
 
-stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True)
+# stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=False, overall_stats=False)
 
 
 def oneway_anova(data):
@@ -172,12 +182,81 @@ def oneway_anova(data):
     for idx, means in enumerate(data):
         if groups[idx] not in groups_dict:
             groups_dict[groups[idx]] = means
+    f_value, p_value = stats.f_oneway(groups_dict['control'], groups_dict['stim'], groups_dict['post'])
+    return f_value, p_value
+
+# oneway_anova(stat_list)
+
+def compare_means(groups, scalar, stat='mean'):
+    comparison_dict = {}
+    for group in groups:
+        group_name = group.split('/')[-2]
+        if group_name not in comparison_dict:
+            comparison_dict[group_name] = {}
+        
+        extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        stat_list = scalar_analysis(extracted_dicts, scalar, stat)
+        mean_stat = [np.mean(stats_list) for stats_list in stat_list]
+
+        comparison_dict[group_name]['control'] = mean_stat[0]
+        comparison_dict[group_name]['stim'] = mean_stat[1]
+        comparison_dict[group_name]['post'] = mean_stat[2]
+
+        comparison_dict[group_name]['count'] = len(stat_list[0])
+
+        f_value, p_value = oneway_anova(stat_list)
+        comparison_dict[group_name]['p_value'] = p_value
+
+    comparison_df = pd.DataFrame(comparison_dict)
+    return comparison_df
 
 
-    fvalue, pvalue = stats.f_oneway(groups_dict['control'], groups_dict['stim'], groups_dict['post'])
-    print(fvalue, pvalue)
+# comparison_df = compare_means(GROUPS, 'velocity_2d_mm')
+# print(comparison_df)
 
-oneway_anova(stat_list)
+
+def compare_subjects(groups):
+    comparison_dict = {}
+    for group in groups:
+        mouse_dict = {}
+        group_name = group.split('/')[-2]
+        if group_name not in comparison_dict:
+            comparison_dict[group_name] = {}
+        
+        extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        for sessions in extracted_dicts:
+            sesh_lists = sessions.split('-')
+            if len(sesh_lists) == 3 or len(sesh_lists) == 7:
+                mouse_id = sesh_lists[1]
+            elif len(sesh_lists) == 5:
+                mouse_id = sesh_lists[-2]
+            elif len(sesh_lists) == 6:
+                for word in sesh_lists:
+                    if len(word) == 4:
+                        if word[-1].isnumeric(): # checks last digit instead of whole thing because of WT (e.g WT6 - last character is a number)
+                            mouse_id = word
+            else:
+                print("[ERROR]: error when handling mice id")
+                print(len(sessions.split('-')))
+                print(sessions)
+            if mouse_id not in mouse_dict:
+                mouse_dict[mouse_id] = []
+        print(mouse_dict)
+
+compare_subjects(GROUPS)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def plot_grouped_scalars(session_dict, group, scalar):
