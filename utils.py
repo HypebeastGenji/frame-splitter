@@ -3,6 +3,8 @@
 ###
 
 import h5py
+import numpy as np
+import matplotlib.pyplot as plt
 
 def h5printR(item, leading = ''):
     for key in item:
@@ -68,6 +70,54 @@ def populate_depth(destination, files=['depth.dat', 'depth_ts.txt']):
             pass
 
 
+def get_mouse_id(sessions):
+    sesh_lists = sessions.split('-')
+    if len(sesh_lists) == 3 or len(sesh_lists) == 7:
+        mouse_id = sesh_lists[1]
+    elif len(sesh_lists) == 5:
+        mouse_id = sesh_lists[-2]
+    elif len(sesh_lists) == 6:
+        for word in sesh_lists:
+            if len(word) == 4 or len(word) == 3:
+                if word[-1].isnumeric(): # checks last digit instead of whole thing because of WT (e.g WT6 - last character is a number)
+                    mouse_id = word
+                    
+    else:
+        print("[ERROR]: error when handling mice id")
+        print(len(sessions.split('-')))
+        print(sessions)
+    
+    return mouse_id
+
+
+def multi_bar_plot(stat_list, session_labels, scalar, title):
+    control_means = stat_list[0]
+    stim_means = stat_list[1]
+    post_means = stat_list[2]
+
+    x = np.arange(len(session_labels))  # label locations
+    width = 0.25  # width of the bars
+
+    fig, ax = plt.subplots()
+    rects1 = ax.bar(x - width, control_means, width, label='Control')
+    rects2 = ax.bar(x, stim_means, width, label='Stim')
+    rects3 = ax.bar(x + width, post_means, width, label='Post')
+
+    ax.set_ylabel(scalar)
+    ax.set_xlabel("Sessions")
+    ax.set_title(title)
+    ax.set_xticks(x, session_labels)
+    ax.legend()
+
+    ax.bar_label(rects1, padding=3)
+    ax.bar_label(rects2, padding=3)
+    ax.bar_label(rects3, padding=3)
+
+    fig.tight_layout()
+
+    # plt.savefig("./WT Analysis/WT "+ scalar +" per frame.png")
+
+    plt.show()
 
 ''' MIGHT NEED LATER
 

@@ -1,9 +1,12 @@
 import os
+from re import M
 import h5py
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+
+from utils import get_mouse_id, multi_bar_plot
 
 
 GROUPS = [
@@ -70,7 +73,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ../../ -- raw results
 
 
-# extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
+extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
 # print(extracted_dicts)
 
 
@@ -94,11 +97,12 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
     session_titles = []
     stat_list = []
     controls, stims, posts = [], [], []
-    
+
     # GET LIST OF LISTS CONTAINING MEANS
     # should change to be more effiient
     for session in session_dict:
         session_titles.append(session)
+        # print(session_dict)
         control_summary = session_dict[session]['control'].describe()
         stim_summary = session_dict[session]['stim'].describe()
         post_summary = session_dict[session]['post'].describe()
@@ -111,8 +115,6 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
     stat_list.append(stims)
     stat_list.append(posts)
 
-
-    
 
     ## PLOT MEAN OF GROUP MEANS
     if overall_stats == True:
@@ -142,37 +144,13 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
         # session_labels = session_titles # full title (comment out for S1, S2, S3...)
         # print(session_labels)
 
-        control_means = stat_list[0]
-        stim_means = stat_list[1]
-        post_means = stat_list[2]
-
-        x = np.arange(len(session_labels))  # label locations
-        width = 0.25  # width of the bars
-
-        fig, ax = plt.subplots()
-        rects1 = ax.bar(x - width, control_means, width, label='Control')
-        rects2 = ax.bar(x, stim_means, width, label='Stim')
-        rects3 = ax.bar(x + width, post_means, width, label='Post')
-
-        ax.set_ylabel(scalar)
-        ax.set_xlabel("Sessions")
-        ax.set_title(stat.capitalize() + " " + scalar+" per frame")
-        ax.set_xticks(x, session_labels)
-        ax.legend()
-
-        ax.bar_label(rects1, padding=3)
-        ax.bar_label(rects2, padding=3)
-        ax.bar_label(rects3, padding=3)
-
-        fig.tight_layout()
-
-        # plt.savefig("./WT Analysis/WT "+ scalar +" per frame.png")
-
-        plt.show()
+        title = stat.capitalize() + " " + scalar+" per frame"
+    
+        multi_bar_plot(stat_list, session_labels, scalar, title)
 
     return stat_list
 
-# stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=False, overall_stats=False)
+stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True)
 
 
 def oneway_anova(data):
@@ -215,35 +193,76 @@ def compare_means(groups, scalar, stat='mean'):
 # print(comparison_df)
 
 
-def compare_subjects(groups):
+def get_subject_dict(groups):
     comparison_dict = {}
     for group in groups:
         mouse_dict = {}
-        group_name = group.split('/')[-2]
-        if group_name not in comparison_dict:
-            comparison_dict[group_name] = {}
-        
+
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
         for sessions in extracted_dicts:
-            sesh_lists = sessions.split('-')
-            if len(sesh_lists) == 3 or len(sesh_lists) == 7:
-                mouse_id = sesh_lists[1]
-            elif len(sesh_lists) == 5:
-                mouse_id = sesh_lists[-2]
-            elif len(sesh_lists) == 6:
-                for word in sesh_lists:
-                    if len(word) == 4:
-                        if word[-1].isnumeric(): # checks last digit instead of whole thing because of WT (e.g WT6 - last character is a number)
-                            mouse_id = word
-            else:
-                print("[ERROR]: error when handling mice id")
-                print(len(sessions.split('-')))
-                print(sessions)
+            mouse_id = get_mouse_id(sessions)
             if mouse_id not in mouse_dict:
                 mouse_dict[mouse_id] = []
-        print(mouse_dict)
 
-compare_subjects(GROUPS)
+        for mouse_id in mouse_dict:
+            for session in extracted_dicts:
+                if mouse_id in session:
+                    # mouse_dict[mouse_id][session] = session
+                    # mouse_dict[mouse_id][session] = extracted_dicts[sessions]
+                    # print(extracted_dicts[sessions]['control'].describe())
+                    # mouse_dict[mouse_id].append(session)
+                    mouse_dict[mouse_id].append(extracted_dicts[session])
+
+        group_name = group.split('/')[-2]
+        if group_name not in comparison_dict:
+            comparison_dict[group_name] = mouse_dict
+
+    return comparison_dict
+
+
+def compare_subjects(comparison_dict, scalar, stat, plot=False):
+    group_stat_dict = {}
+    for group in comparison_dict:
+        stat_dict = {}
+        for mouse in comparison_dict[group]:
+            if mouse not in stat_dict:
+                stat_dict[mouse] = []
+            controls, stims, posts = [], [], []
+            mouse_groups = comparison_dict[group][mouse]
+            # print(mouse)
+            # print(mouse_groups)
+            for single_mouse in mouse_groups:
+                # print(single_mouse) 
+                control_summary = single_mouse['control'].describe()
+                stim_summary = single_mouse['stim'].describe()
+                post_summary = single_mouse['post'].describe()
+
+                controls.append(control_summary[scalar][stat])
+                stims.append(stim_summary[scalar][stat])
+                posts.append(post_summary[scalar][stat])
+            stat_dict[mouse].append(controls)
+            stat_dict[mouse].append(stims)
+            stat_dict[mouse].append(posts)
+        group_stat_dict[group] = stat_dict
+        
+        if plot:
+            for subject in stat_dict:
+                session_labels = []
+                stat_list = stat_dict[subject]
+                for i in range(len(stat_list[0])):
+                    session_labels.append("S" + str(i+1) + " (" + subject + ")")
+
+                title = stat.capitalize() + " " + scalar+" per frame (" + group + ")"
+    
+                multi_bar_plot(stat_list, session_labels, scalar, title)
+
+                
+
+    return group_stat_dict
+
+
+compare_subjects(get_subject_dict(GROUPS), 'velocity_2d_mm', 'mean')
+
 
 
 
