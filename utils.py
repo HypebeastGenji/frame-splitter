@@ -119,6 +119,7 @@ def multi_bar_plot(stat_list, session_labels, scalar, title):
 
     plt.show()
 
+    
 ''' MIGHT NEED LATER
 
 try:

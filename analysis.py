@@ -1,5 +1,5 @@
 import os
-from re import M
+from statistics import mean
 import h5py
 import numpy as np
 import pandas as pd
@@ -73,9 +73,8 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # ../../ -- raw results
 
 
-extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
+# extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
 # print(extracted_dicts)
-
 
 
 
@@ -102,15 +101,14 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
     # should change to be more effiient
     for session in session_dict:
         session_titles.append(session)
-        # print(session_dict)
         control_summary = session_dict[session]['control'].describe()
         stim_summary = session_dict[session]['stim'].describe()
         post_summary = session_dict[session]['post'].describe()
-        # print(session)
-        # print(control_summary[scalar]['mean'])
+
         controls.append(control_summary[scalar][stat])
         stims.append(stim_summary[scalar][stat])
         posts.append(post_summary[scalar][stat])
+
     stat_list.append(controls)
     stat_list.append(stims)
     stat_list.append(posts)
@@ -142,15 +140,12 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
             subject_id = session_titles[i].split('-')[1]
             session_labels.append("S" + str(i+1) + " (" + subject_id + ")")
         # session_labels = session_titles # full title (comment out for S1, S2, S3...)
-        # print(session_labels)
-
         title = stat.capitalize() + " " + scalar+" per frame"
-    
         multi_bar_plot(stat_list, session_labels, scalar, title)
 
     return stat_list
 
-stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True)
+# stat_list = scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True)
 
 
 def oneway_anova(data):
@@ -256,98 +251,81 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
     
                 multi_bar_plot(stat_list, session_labels, scalar, title)
 
-                
-
     return group_stat_dict
 
 
-compare_subjects(get_subject_dict(GROUPS), 'velocity_2d_mm', 'mean')
+# compare_subjects(get_subject_dict(GROUPS), 'velocity_2d_mm', 'mean')
 
 
 
+mean_df_path = '../data/WT vs EPH (10Hz)/mean_df.csv'
+scalar_df_path = '../data/WT vs EPH (10Hz)/scalar_df.csv'
+
+def read_df(filename):
+    with open(filename, 'r') as infile:
+        data_list = []
+        data = infile.readlines()
+        for line in data:
+            line_data = line.strip().split(',')
+            line_data = ["nan" if x == '' else x for x in line_data]
+            data_list.append(line_data)
+    return data_list
+
+def get_headers(data, quiet=False):
+    if not quiet:
+        for i in data[0]:
+            print(i)
+    return data[0]
+
+def read_column(data, column):
+    column_idx = data[0].index(column)
+    for row in data:
+        print(row[column_idx])
 
 
+def syllable_sort(data, scalar):
+    syllable_dict = {}
+    for row in data[1:]:
+        if row[2] not in syllable_dict:
+            syllable_dict[row[2]] = {}
+        if row[0] not in syllable_dict[row[2]]:
+            # print(row[data[0].index(scalar)])
+            syllable_dict[row[2]][row[0]] = [float(row[data[0].index(scalar)])]        
+        else:
+            syllable_dict[row[2]][row[0]].append(float(row[data[0].index(scalar)]))
+    return syllable_dict
 
 
+def sum_groups(sorted_dict):
+    for syllable in sorted_dict:
+        for group in sorted_dict.get(syllable):
+            sorted_dict[syllable][group] = sum(sorted_dict[syllable][group]) / len(sorted_dict[syllable][group])
+    return sorted_dict
 
 
+def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable', 'Usage']):
 
+    means_list = []
+    groups = list(sorted_dict['0'].keys())
+    for group in groups:
+        mean_array = np.zeros(len(sorted_dict))
+        means_list.append(mean_array)
+    means_array = np.array(means_list)
+    
+    syllables = []
+    for idx1, syllable in enumerate(sorted_dict):
+        syllables.append(idx1)
+        for idx2, group in enumerate(sorted_dict[syllable]):
+            means_array[idx2, idx1] = sorted_dict[syllable][group]
 
-
-
-
-
-
-def plot_grouped_scalars(session_dict, group, scalar):
-    sessions = []
-    for session in session_dict:
-        sessions.append(session)
-    scalar_list = list(session_dict[sessions[0]][group][scalar])
-    print(scalar_list)
-
-    plt.plot(scalar_list)
+    for idx, group_array in enumerate(means_array):
+        plt.plot(syllables, group_array, label=groups[idx], marker='o')
+        plt.legend()
+    plt.title(titles[0])
+    plt.xlabel(titles[1])
+    plt.ylabel(titles[2])
     plt.show()
+    
+    return means_array
 
-# plot_grouped_scalars(extracted_dicts, 'control', 'height_ave_mm')
-
-def raw_extract_scalars():
-    return extract_scalars('../../', raw=True, save_to_csv=False)
-
-def plot_normal_dist(domain):
-    plt.plot(domain, scs.norm.pdf(domain, 0, 1))
-    plt.title("Standard Normal")
-    plt.xlabel("Value")
-    plt.ylabel("Density")
-    plt.show()
-
-def plot_raw_scalars(session_dict, scalar):
-   
-    sessions = []
-    for session in session_dict:
-        sessions.append(session)
-    scalar_df = session_dict[sessions[7]][scalar]
-    # print(scalar_df)
-    scalar_list = list(session_dict[sessions[7]][scalar])
-    # print(scalar_list)
-    print(max(scalar_list))
-    # for dp in scalar_list:
-    #     if dp > 60:
-    #         # dp = 0
-    #         print(dp)
-    # z = np.abs(scs.zscore(scalar_list))
-    # z = scalar_df.apply(scs.zscore)
-    # print(z)
-    print(scalar_df)
-    scalar_df.to_csv("scalar-velocity.csv")
-    scalar_df['z_scores'] = (scalar_df[scalar] - scalar_df[scalar].mean())/scalar_df[scalar].std(ddof=0)
-    print(scalar_df)
-    scalar_df.to_csv("scalar-velocity-zscores.csv")
-    z_scores = scalar_df['z_scores']
-    # print(z_scores)
-    print(len(z_scores))
-    # print(scalar_df.head())
-    for col in scalar_df.columns:
-        print(col)
-    # print(scalar_df[scalar].describe())
-    # print(z_scores.describe())
-
-
-    threshold = 3
-    # print(np.where(z_scores > threshold)) 
-    outliers_removed = np.where(z_scores < threshold)
-    # plt.plot(outliers_removed)
-
-
-    # plot_normal_dist(z_scores)
-
-    # zplot(np.array(z_scores))
-
-
-    # plt.plot(scalar_list)
-    # plt.vlines(18000, 0, 60, 'grey', '--')
-    # plt.vlines(36000, 0, 60, 'grey', '--')
-    plt.show()
-
-
-
-# plot_raw_scalars(raw_extract_scalars(), 'velocity_2d_mm')
+plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path), 'usage')))
