@@ -1,20 +1,34 @@
+from importlib.resources import path
 import os
+import pathlib
 from statistics import mean
 import h5py
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+import pathlib
 
 from utils import get_mouse_id, multi_bar_plot
 
 
+moseq_dir = pathlib.Path.cwd().parent
+data_dir = moseq_dir/'data'
+
 GROUPS = [
-            '../data/10Hz WT/',
-            '../data/10Hz ephrin/',
-            '../data/10Hz WT sham/',
-            '../data/10Hz ephrin sham/'
+        '10Hz WT/',
+        '10Hz ephrin/',
+        '10Hz WT sham/',
+        '10Hz ephrin sham/'
 ]
+
+def get_group_paths(groups, data_dir):
+    path_list = [f"{data_dir}/{group}" for group in groups]
+    return path_list
+
+GROUP_PATHS = get_group_paths(GROUPS, data_dir)
+
+
 
 def extract_scalars(base_dir, raw=False, save_to_csv=False):
     files = os.listdir(base_dir)
@@ -164,10 +178,12 @@ def compare_means(groups, scalar, stat='mean'):
     comparison_dict = {}
     for group in groups:
         group_name = group.split('/')[-2]
+
         if group_name not in comparison_dict:
             comparison_dict[group_name] = {}
         
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        print(extracted_dicts)
         stat_list = scalar_analysis(extracted_dicts, scalar, stat)
         mean_stat = [np.mean(stats_list) for stats_list in stat_list]
 
@@ -184,7 +200,7 @@ def compare_means(groups, scalar, stat='mean'):
     return comparison_df
 
 
-# comparison_df = compare_means(GROUPS, 'velocity_2d_mm')
+# comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
 # print(comparison_df)
 
 
@@ -209,6 +225,7 @@ def get_subject_dict(groups):
                     mouse_dict[mouse_id].append(extracted_dicts[session])
 
         group_name = group.split('/')[-2]
+        # print(group_name)
         if group_name not in comparison_dict:
             comparison_dict[group_name] = mouse_dict
 
@@ -254,7 +271,7 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
     return group_stat_dict
 
 
-# compare_subjects(get_subject_dict(GROUPS), 'velocity_2d_mm', 'mean')
+# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=True)
 
 
 
