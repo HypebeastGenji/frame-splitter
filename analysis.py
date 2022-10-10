@@ -23,8 +23,7 @@ GROUPS = [
 ]
 
 def get_group_paths(groups, data_dir):
-    path_list = [f"{data_dir}/{group}" for group in groups]
-    return path_list
+    return [f"{data_dir}/{group}" for group in groups]
 
 GROUP_PATHS = get_group_paths(GROUPS, data_dir)
 
@@ -183,7 +182,7 @@ def compare_means(groups, scalar, stat='mean'):
             comparison_dict[group_name] = {}
         
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
-        print(extracted_dicts)
+        # print(extracted_dicts)
         stat_list = scalar_analysis(extracted_dicts, scalar, stat)
         mean_stat = [np.mean(stats_list) for stats_list in stat_list]
 
@@ -197,6 +196,7 @@ def compare_means(groups, scalar, stat='mean'):
         comparison_dict[group_name]['p_value'] = p_value
 
     comparison_df = pd.DataFrame(comparison_dict)
+    print(comparison_dict)
     return comparison_df
 
 
@@ -271,7 +271,7 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
     return group_stat_dict
 
 
-# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=True)
+# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean')
 
 
 
@@ -299,6 +299,15 @@ def read_column(data, column):
     for row in data:
         print(row[column_idx])
 
+def setup_group_dict(data, group_col=0):
+    group_dict = {}
+    for row in data[1:]:
+        if row[group_col] not in group_dict:
+            group_dict[row[group_col]] = {}
+    print(group_dict)
+    return group_dict
+
+
 
 def syllable_sort(data, scalar):
     syllable_dict = {}
@@ -306,7 +315,6 @@ def syllable_sort(data, scalar):
         if row[2] not in syllable_dict:
             syllable_dict[row[2]] = {}
         if row[0] not in syllable_dict[row[2]]:
-            # print(row[data[0].index(scalar)])
             syllable_dict[row[2]][row[0]] = [float(row[data[0].index(scalar)])]        
         else:
             syllable_dict[row[2]][row[0]].append(float(row[data[0].index(scalar)]))
@@ -316,7 +324,7 @@ def syllable_sort(data, scalar):
 def sum_groups(sorted_dict):
     for syllable in sorted_dict:
         for group in sorted_dict.get(syllable):
-            sorted_dict[syllable][group] = sum(sorted_dict[syllable][group]) / len(sorted_dict[syllable][group])
+            sorted_dict[syllable][group] = np.nansum(sorted_dict[syllable][group]) / len(sorted_dict[syllable][group])
     return sorted_dict
 
 
@@ -342,7 +350,49 @@ def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable'
     plt.xlabel(titles[1])
     plt.ylabel(titles[2])
     plt.show()
-    
     return means_array
 
-plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path), 'usage')))
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path), 'usage')))
+
+
+def syllable_overview(data, scalars):
+    overview_dict = {}
+    for scalar in scalars:
+        sorted_dict = syllable_sort(data, scalar)
+        summed_dict = sum_groups(sorted_dict)
+        for syllable in summed_dict:
+            if syllable not in overview_dict:
+                overview_dict[syllable] = {}
+            for group in summed_dict[syllable]:
+                if group not in overview_dict[syllable]:
+                    overview_dict[syllable][group] = {}
+                if scalar not in overview_dict[syllable][group]:
+                    overview_dict[syllable][group][scalar] = summed_dict[syllable][group]
+
+    return overview_dict
+
+
+def print_syllable_overview(syllable_dict, syllable_num='all'):
+    keys = list(syllable_dict.keys())
+
+    if syllable_num == 'all':
+        for syl in syllable_dict:
+            syl_df = pd.DataFrame(syllable_dict[syl])
+            print("---------------------------------------------------------------------------------------------------")
+            print(f"[SYLLABLE: {syl}]")
+            print(syl_df)
+    elif syllable_num in keys:
+        syl_df = pd.DataFrame(syllable_dict[syllable_num])
+        print("---------------------------------------------------------------------------------------------------")
+        print(f"[SYLLABLE: {syllable_num}]")
+        print(syl_df)
+    else:
+        raise KeyError("Syllable does not exist")
+    print("---------------------------------------------------------------------------------------------------")
+
+# syllable_dict = syllable_overview(read_df(scalar_df_path), ["velocity_2d_mm", "velocity_3d_mm", "height_ave_mm", "dist_to_center_px"])
+
+syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+
+
+print_syllable_overview(syllable_dict)
