@@ -9,7 +9,7 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
 
-from utils import get_mouse_id, multi_bar_plot
+from utils import get_mouse_id, multi_bar_plot, reorder_list
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -304,7 +304,6 @@ def setup_group_dict(data, group_col=0):
     for row in data[1:]:
         if row[group_col] not in group_dict:
             group_dict[row[group_col]] = {}
-    print(group_dict)
     return group_dict
 
 
@@ -345,6 +344,8 @@ def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable'
 
     for idx, group_array in enumerate(means_array):
         plt.plot(syllables, group_array, label=groups[idx], marker='o')
+        plt.tick_params(axis='x', labelrotation=90)
+        plt.xticks(syllables)
         plt.legend()
     plt.title(titles[0])
     plt.xlabel(titles[1])
@@ -390,9 +391,45 @@ def print_syllable_overview(syllable_dict, syllable_num='all'):
         raise KeyError("Syllable does not exist")
     print("---------------------------------------------------------------------------------------------------")
 
-# syllable_dict = syllable_overview(read_df(scalar_df_path), ["velocity_2d_mm", "velocity_3d_mm", "height_ave_mm", "dist_to_center_px"])
 
-syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+# syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+# print(syllable_dict)
+# print_syllable_overview(syllable_dict)
 
 
-print_syllable_overview(syllable_dict)
+def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=False):
+    keys = list(syllable_dict.keys())
+
+    if syllable_num in keys:
+        groups = []
+        scalars = []
+        for group in syllable_dict[syllable_num]:
+            groups.append(group)
+            scalars.append(syllable_dict[syllable_num][group][scalar])
+
+        conditions = [group.split(' - ')[1] for group in groups][:len(groups)//2]
+        wild_type = scalars[len(scalars)//2:]
+        ephrin = scalars[:len(scalars)//2]
+
+        # reorders lists from control, post, stim to control, stim, post
+        conditions, wild_type, ephrin = reorder_list(conditions, wild_type, ephrin, order=[0, 2, 1])
+
+        plt.plot(conditions, wild_type, label="Wild Type", marker='o')
+        plt.plot(conditions, ephrin, label="Ephrin", marker='o')
+        plt.legend()
+        plt.title(f"{scalar.capitalize()} for Syllable {syllable_num}")
+        plt.xlabel("Conditions")
+        # plt.ylabel("")
+
+        if rapid_plot:
+            plt.pause(2)
+            plt.clf()
+        else:
+            plt.show()
+
+# plot_syllable_overview(syllable_dict, "height_ave_mm_mean", syllable_num='10')
+
+def rapid_plot(scalar):
+    syllable_dict = syllable_overview(read_df(mean_df_path), [scalar])
+    for syllable in syllable_dict:
+        plot_syllable_overview(syllable_dict, scalar, syllable_num=syllable, rapid_plot=True)

@@ -119,6 +119,15 @@ def multi_bar_plot(stat_list, session_labels, scalar, title):
 
     plt.show()
 
+
+def reorder_list(*args, order):
+    ordered_lists = []
+    for arg in args:
+        ordered_list = [arg[i] for i in order]
+        ordered_lists.append(ordered_list)
+    return ordered_lists
+
+
     
 ''' MIGHT NEED LATER
 
