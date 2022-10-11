@@ -3,6 +3,7 @@
 ###
 
 import h5py
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -128,6 +129,17 @@ def reorder_list(*args, order):
     return ordered_lists
 
 
+def get_syllable_map(filename):
+    with open(filename) as yml:
+        content = yaml.safe_load(yml)
+
+    syllable_map = {}
+
+    for syl_num in content:
+        if syl_num not in syllable_map:
+            syllable_map[str(syl_num)] = content[syl_num]['label']
+    
+    return syllable_map
     
 ''' MIGHT NEED LATER
 

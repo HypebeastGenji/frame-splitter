@@ -9,7 +9,7 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
 
-from utils import get_mouse_id, multi_bar_plot, reorder_list
+from utils import get_mouse_id, multi_bar_plot, reorder_list, get_syllable_map
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -182,7 +182,6 @@ def compare_means(groups, scalar, stat='mean'):
             comparison_dict[group_name] = {}
         
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
-        # print(extracted_dicts)
         stat_list = scalar_analysis(extracted_dicts, scalar, stat)
         mean_stat = [np.mean(stats_list) for stats_list in stat_list]
 
@@ -196,7 +195,6 @@ def compare_means(groups, scalar, stat='mean'):
         comparison_dict[group_name]['p_value'] = p_value
 
     comparison_df = pd.DataFrame(comparison_dict)
-    print(comparison_dict)
     return comparison_df
 
 
@@ -275,8 +273,16 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
 
 
 
-mean_df_path = '../data/WT vs EPH (10Hz)/mean_df.csv'
-scalar_df_path = '../data/WT vs EPH (10Hz)/scalar_df.csv'
+# mean_df_path = '../data/WT vs EPH (10Hz)/mean_df.csv'
+# scalar_df_path = '../data/WT vs EPH (10Hz)/scalar_df.csv'
+
+mean_df_path = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
+syllable_info_path = data_dir/'WT vs EPH (10Hz)'/'syll_info.yaml'
+
+SYLLABLE_MAP = get_syllable_map(syllable_info_path)
+print(SYLLABLE_MAP)
+
+
 
 def read_df(filename):
     with open(filename, 'r') as infile:
@@ -373,28 +379,36 @@ def syllable_overview(data, scalars):
     return overview_dict
 
 
-def print_syllable_overview(syllable_dict, syllable_num='all'):
+def print_syllable_overview(syllable_dict, syllable_num='all', names=False):
     keys = list(syllable_dict.keys())
 
     if syllable_num == 'all':
         for syl in syllable_dict:
             syl_df = pd.DataFrame(syllable_dict[syl])
             print("---------------------------------------------------------------------------------------------------")
-            print(f"[SYLLABLE: {syl}]")
+            if names:
+                print(f"[SYLLABLE: {syl}]")
+                print(f"[SYLLABLE: {SYLLABLE_MAP[syl]}]")
+            else:
+                print(f"[SYLLABLE: {syl}]")
             print(syl_df)
     elif syllable_num in keys:
         syl_df = pd.DataFrame(syllable_dict[syllable_num])
         print("---------------------------------------------------------------------------------------------------")
-        print(f"[SYLLABLE: {syllable_num}]")
+        if names:
+            print(f"[SYLLABLE: {syllable_num}]")
+            print(f"[SYLLABLE: {SYLLABLE_MAP[syllable_num]}]")
+        else:
+            print(f"[SYLLABLE: {syllable_num}]")
         print(syl_df)
     else:
         raise KeyError("Syllable does not exist")
     print("---------------------------------------------------------------------------------------------------")
 
 
-# syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
 # print(syllable_dict)
-# print_syllable_overview(syllable_dict)
+print_syllable_overview(syllable_dict, names=True)
 
 
 def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=False):
@@ -433,3 +447,28 @@ def rapid_plot(scalar):
     syllable_dict = syllable_overview(read_df(mean_df_path), [scalar])
     for syllable in syllable_dict:
         plot_syllable_overview(syllable_dict, scalar, syllable_num=syllable, rapid_plot=True)
+
+# rapid_plot('height_ave_mm_mean')
+
+
+def syllable_count(syllable_map, remove_error=True):
+    syllable_dict = {}
+    for syllable in syllable_map.values():
+        if syllable not in syllable_dict:
+            syllable_dict[syllable] = 1
+        else: 
+            syllable_dict[syllable] += 1
+    return syllable_dict
+
+
+def plot_syllable_count(syllable_count):
+
+    plt.bar(range(len(syllable_count)), list(syllable_count.values()), align='center')
+    plt.xticks(range(len(syllable_count)), list(syllable_count.keys()))
+    plt.xlabel("Hand-labelled Behavioural Class")
+    plt.ylabel("Number of Syllables")
+    plt.show()
+
+# plot_syllable_count(syllable_count(get_syllable_map(syllable_info_path)))
+
+
