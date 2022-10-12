@@ -3,13 +3,14 @@ import os
 import pathlib
 from statistics import mean
 import h5py
+import yaml
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
 
-from utils import get_mouse_id, multi_bar_plot, reorder_list, get_syllable_map
+from utils import get_mouse_id, multi_bar_plot, reorder_list
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -89,6 +90,10 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
 # extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
 # print(extracted_dicts)
 
+def plot_extractions(groups, plot_type='plot'):
+    for group in groups:
+        extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True, plot=plot_type)
 
 
 def simple_scalar_analysis(session_dict, group, scalar):
@@ -103,7 +108,7 @@ def simple_scalar_analysis(session_dict, group, scalar):
         
 # simple_scalar_analysis(extracted_dicts, 'stim', 'velocity_2d_mm')
 
-def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_stats=False):
+def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_stats=False, plot='plot'):
 
     group_condtions = ['control', 'stim', 'post']
     session_titles = []
@@ -136,8 +141,10 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
                 print("Mean for", group_condtions[count], "group:", np.mean(group))
                 mean_of_means.append(np.mean(group))
                 count += 1
-            plt.bar(group_condtions, mean_of_means)
-            # plt.plot(group_condtions, mean_of_means, marker='o')
+            if plot == 'plot':
+                plt.plot(group_condtions, mean_of_means, marker='o')
+            else:  
+                plt.bar(group_condtions, mean_of_means)
             plt.title(stat.capitalize() + " " + scalar+" per frame")
             plt.xlabel("Group Condtions")
             plt.ylabel(scalar)
@@ -271,18 +278,42 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
 
 # compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean')
 
-
+## ------------- Syllable Analysis ------------- ##
 
 # mean_df_path = '../data/WT vs EPH (10Hz)/mean_df.csv'
 # scalar_df_path = '../data/WT vs EPH (10Hz)/scalar_df.csv'
 
-mean_df_path = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
+mean_df_path_usage_prob = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
+mean_df_path_usage_nums = data_dir/'WT vs EPH (10Hz)'/'mean_df_nums.csv'
+
 syllable_info_path = data_dir/'WT vs EPH (10Hz)'/'syll_info.yaml'
 
-SYLLABLE_MAP = get_syllable_map(syllable_info_path)
-print(SYLLABLE_MAP)
 
+def get_syllable_map(filename, info=['label']):
+    with open(filename) as yml:
+        content = yaml.safe_load(yml)
 
+    syllable_map = {}
+    if len(info) == 1:
+        for syl_num in content:
+            if syl_num not in syllable_map:
+                syllable_map[str(syl_num)] = content[syl_num][info[0]]
+    else:
+        for idx, item in enumerate(info):
+            for syl_num in content:
+                if syl_num not in syllable_map:
+                    if idx == 0:
+                        syllable_map[str(syl_num)] = [content[syl_num][item]]
+                    else: 
+                        syllable_map[str(syl_num)].append(content[syl_num][item])
+
+    
+    return syllable_map
+
+SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
+# print(SYLLABLE_MAP)
+# for i in SYLLABLE_MAP.values():
+#     print(i)
 
 def read_df(filename):
     with open(filename, 'r') as infile:
@@ -300,10 +331,14 @@ def get_headers(data, quiet=False):
             print(i)
     return data[0]
 
+# get_headers(read_df(mean_df_path_usage_prob))
+
 def read_column(data, column):
     column_idx = data[0].index(column)
     for row in data:
         print(row[column_idx])
+
+# read_column(read_df(mean_df_path_usage_prob), "usage")
 
 def setup_group_dict(data, group_col=0):
     group_dict = {}
@@ -311,7 +346,6 @@ def setup_group_dict(data, group_col=0):
         if row[group_col] not in group_dict:
             group_dict[row[group_col]] = {}
     return group_dict
-
 
 
 def syllable_sort(data, scalar):
@@ -359,7 +393,7 @@ def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable'
     plt.show()
     return means_array
 
-# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path), 'usage')))
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'usage')))
 
 
 def syllable_overview(data, scalars):
@@ -387,31 +421,39 @@ def print_syllable_overview(syllable_dict, syllable_num='all', names=False):
             syl_df = pd.DataFrame(syllable_dict[syl])
             print("---------------------------------------------------------------------------------------------------")
             if names:
-                print(f"[SYLLABLE: {syl}]")
-                print(f"[SYLLABLE: {SYLLABLE_MAP[syl]}]")
+                try:
+                    print(f"[SYLLABLE]: {syl}")
+                    print(f"[SYLLABLE]: {SYLLABLE_MAP[syl][0]}")
+                    print(f"[SYLLABLE]: {SYLLABLE_MAP[syl][1]}")
+                except KeyError:
+                    break
             else:
-                print(f"[SYLLABLE: {syl}]")
+                print(f"[SYLLABLE]: {syl}")
             print(syl_df)
     elif syllable_num in keys:
         syl_df = pd.DataFrame(syllable_dict[syllable_num])
         print("---------------------------------------------------------------------------------------------------")
         if names:
-            print(f"[SYLLABLE: {syllable_num}]")
-            print(f"[SYLLABLE: {SYLLABLE_MAP[syllable_num]}]")
+            try:
+                print(f"[SYLLABLE]: {syllable_num}")
+                print(f"[SYLLABLE]: {SYLLABLE_MAP[syllable_num][0]}")
+                print(f"[SYLLABLE]: {SYLLABLE_MAP[syl][1]}")
+            except KeyError:
+                pass
         else:
-            print(f"[SYLLABLE: {syllable_num}]")
+            print(f"[SYLLABLE: {syllable_num}")
         print(syl_df)
     else:
         raise KeyError("Syllable does not exist")
     print("---------------------------------------------------------------------------------------------------")
 
 
-syllable_dict = syllable_overview(read_df(mean_df_path), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
-# print(syllable_dict)
-print_syllable_overview(syllable_dict, names=True)
+# syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+# # print(syllable_dict)
+# print_syllable_overview(syllable_dict, names=True)
 
 
-def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=False):
+def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=False, title='label'):
     keys = list(syllable_dict.keys())
 
     if syllable_num in keys:
@@ -431,7 +473,10 @@ def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=F
         plt.plot(conditions, wild_type, label="Wild Type", marker='o')
         plt.plot(conditions, ephrin, label="Ephrin", marker='o')
         plt.legend()
-        plt.title(f"{scalar.capitalize()} for Syllable {syllable_num}")
+        if title == 'label':
+            plt.title(f"{scalar.capitalize()} for Syllable {syllable_num}: {SYLLABLE_MAP[syllable_num][0]}")
+        elif title == 'desc':
+            plt.title(f"{scalar.capitalize()} for Syllable {syllable_num}: {SYLLABLE_MAP[syllable_num][1]}")
         plt.xlabel("Conditions")
         # plt.ylabel("")
 
@@ -441,14 +486,14 @@ def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=F
         else:
             plt.show()
 
-# plot_syllable_overview(syllable_dict, "height_ave_mm_mean", syllable_num='10')
+# plot_syllable_overview(syllable_dict, "usage", syllable_num='1')
 
-def rapid_plot(scalar):
-    syllable_dict = syllable_overview(read_df(mean_df_path), [scalar])
+def rapid_plot(filename, scalar, title='label'):
+    syllable_dict = syllable_overview(read_df(filename), [scalar])
     for syllable in syllable_dict:
-        plot_syllable_overview(syllable_dict, scalar, syllable_num=syllable, rapid_plot=True)
+        plot_syllable_overview(syllable_dict, scalar, syllable_num=syllable, rapid_plot=True, title=title)
 
-# rapid_plot('height_ave_mm_mean')
+# rapid_plot(mean_df_path_usage_prob, 'height_ave_mm_mean')
 
 
 def syllable_count(syllable_map, remove_error=True):
@@ -472,3 +517,63 @@ def plot_syllable_count(syllable_count):
 # plot_syllable_count(syllable_count(get_syllable_map(syllable_info_path)))
 
 
+transition_matrix_dir = data_dir/'WT vs EPH (10Hz)'/'moseq_output'/'final-model'/'TM bigram'/'WT - control_bigram_transition_matrix.csv'
+
+def transition_matrix(filename, mtype='cov'):
+    df = pd.read_csv(filename, header=None)
+    # cov
+    if mtype == 'cov':
+        plt.matshow(df.cov())
+    elif mtype == 'corr':
+        plt.matshow(df.corr())
+    plt.show()
+
+# transition_matrix(transition_matrix_dir)
+
+
+
+
+
+
+
+### RAW ANALYSIS ###
+
+# PLOT RAW EXTRACTION DATA
+# plot_extractions(GROUP_PATHS, plot_type='plot')
+
+# ## TABLE WITH MEANS AND ANOVA (ANOVA USE LIST OF MEANS NOT RAW DATA??)
+# comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
+# print(comparison_df)
+
+# ## COMPARE RAW SCALARS WITHIN SUBJECT
+# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=True)
+
+
+
+
+### SYLLABLE ANALYSIS ###
+
+## MAP SYLLABLE NUM TO LABEL
+SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
+
+# ## PLOT OVERALL SYLLABLE USAGE
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'usage')))
+
+# ## PLOT OVERALL VELOCITY
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
+
+# ## PRINT SYLLABLE OVERVIEW
+syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+print_syllable_overview(syllable_dict, names=True)
+
+# ## PLOT SYLLABLE OVERVIEW
+# rapid_plot(mean_df_path_usage_prob, 'usage', title='label')
+# # rapid_plot(mean_df_path_usage_prob, 'velocity_2d_mm_mean') # velocity goes down
+# # rapid_plot(mean_df_path_usage_prob, 'height_ave_mm_mean') # ephrin usually higher than WT
+
+# ## PLOT BEHAVIOUR CLASSIFICATION
+plot_syllable_count(syllable_count(get_syllable_map(syllable_info_path)))
+
+# ## COVARIENCE AND CORRELATIONAL MATRIX
+# transition_matrix(transition_matrix_dir, mtype='corr')
+# transition_matrix(transition_matrix_dir, mtype='cov')
