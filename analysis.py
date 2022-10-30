@@ -10,7 +10,7 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
 
-from utils import get_mouse_id, multi_bar_plot, reorder_list
+from utils import get_line, get_mouse_id, multi_bar_plot, new_piecewise_linear, piecewise_linear, reorder_list
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -108,6 +108,29 @@ def simple_scalar_analysis(session_dict, group, scalar):
         
 # simple_scalar_analysis(extracted_dicts, 'stim', 'velocity_2d_mm')
 
+def merge_subjects(session_titles, stat_list):
+    compare_dict = {}
+    print(stat_list)
+    for idx, session in enumerate(stat_list):
+
+        # print(session_titles[idx])
+        # print(compare_dict)
+        session_id = get_mouse_id(session_titles[idx])
+        if session_id not in compare_dict:
+            compare_dict[session_id] = session
+            print(session_id)
+            print(session)
+        else:
+            compare_dict[session_id] += compare_dict[session_titles[idx]]
+            # print(session_id)
+            # print(session)
+
+    # print(compare_dict)
+    # for i in compare_dict:
+    #     print(i)
+    #     print(len(i))
+
+
 def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_stats=False, plot='plot'):
 
     group_condtions = ['control', 'stim', 'post']
@@ -123,13 +146,25 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
         stim_summary = session_dict[session]['stim'].describe()
         post_summary = session_dict[session]['post'].describe()
 
+        # print(control_summary)
+        # print(session_dict[session]['control'])
+        # print(session)
+        # print(get_mouse_id(session))
+
         controls.append(control_summary[scalar][stat])
         stims.append(stim_summary[scalar][stat])
         posts.append(post_summary[scalar][stat])
 
+    # print(len(session_titles))
+    # print(len(controls))
+    # print(len(posts))
+    # print(len(stims))
+
     stat_list.append(controls)
     stat_list.append(stims)
     stat_list.append(posts)
+
+    merge_subjects(session_titles, stat_list)
 
 
     ## PLOT MEAN OF GROUP MEANS
@@ -190,6 +225,7 @@ def compare_means(groups, scalar, stat='mean'):
         
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
         stat_list = scalar_analysis(extracted_dicts, scalar, stat)
+        print(stat_list)
         mean_stat = [np.mean(stats_list) for stats_list in stat_list]
 
         comparison_dict[group_name]['control'] = mean_stat[0]
@@ -238,6 +274,7 @@ def get_subject_dict(groups):
 
 
 def compare_subjects(comparison_dict, scalar, stat, plot=False):
+    # print(comparison_dict)
     group_stat_dict = {}
     for group in comparison_dict:
         stat_dict = {}
@@ -277,6 +314,43 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
 
 
 # compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean')
+
+
+def plot_timeseries(groups, scalar):
+    for group in groups:
+        extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        for session in extracted_dicts:
+            # print(extracted_dicts[session][])
+            for condition in extracted_dicts[session]:
+                # extracted_dicts[session][condition][scalar].plot(label=condition)
+                data = extracted_dicts[session][condition][scalar].to_numpy()
+                indices = np.array(extracted_dicts[session][condition][scalar].index.values.tolist())
+            
+                plt.plot(indices, data)
+                
+                
+                regression = stats.linregress(indices, y=data)
+                regression_line = get_line(indices, regression.slope, regression.intercept)
+                plt.plot(indices, regression_line, color='red', linewidth=4)
+
+                stacked = np.stack((indices, data))
+                stacked = stacked.T
+
+                # piecewise_linear(stacked, 10)
+                # new_piecewise_linear(stacked, 10)
+
+
+
+            plt.legend()
+            plt.title(session)
+            plt.xlabel('Frames')
+            plt.ylabel(scalar.capitalize())
+            plt.show()
+            break
+            # plt.plot(extracted_dicts)
+        # print(extracted_dicts)
+
+plot_timeseries(GROUP_PATHS, 'velocity_2d_mm')
 
 ## ------------- Syllable Analysis ------------- ##
 
@@ -542,11 +616,11 @@ def transition_matrix(filename, mtype='cov'):
 # plot_extractions(GROUP_PATHS, plot_type='plot')
 
 # ## TABLE WITH MEANS AND ANOVA (ANOVA USE LIST OF MEANS NOT RAW DATA??)
-# comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
-# print(comparison_df)
+comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
+print(comparison_df)
 
 # ## COMPARE RAW SCALARS WITHIN SUBJECT
-# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=True)
+compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=False)
 
 
 
@@ -554,7 +628,7 @@ def transition_matrix(filename, mtype='cov'):
 ### SYLLABLE ANALYSIS ###
 
 ## MAP SYLLABLE NUM TO LABEL
-SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
+# SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
 
 # ## PLOT OVERALL SYLLABLE USAGE
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'usage')))
@@ -563,8 +637,8 @@ SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
 
 # ## PRINT SYLLABLE OVERVIEW
-syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
-print_syllable_overview(syllable_dict, names=True)
+# syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+# print_syllable_overview(syllable_dict, names=True)
 
 # ## PLOT SYLLABLE OVERVIEW
 # rapid_plot(mean_df_path_usage_prob, 'usage', title='label')
@@ -572,7 +646,7 @@ print_syllable_overview(syllable_dict, names=True)
 # # rapid_plot(mean_df_path_usage_prob, 'height_ave_mm_mean') # ephrin usually higher than WT
 
 # ## PLOT BEHAVIOUR CLASSIFICATION
-plot_syllable_count(syllable_count(get_syllable_map(syllable_info_path)))
+# plot_syllable_count(syllable_count(get_syllable_map(syllable_info_path)))
 
 # ## COVARIENCE AND CORRELATIONAL MATRIX
 # transition_matrix(transition_matrix_dir, mtype='corr')

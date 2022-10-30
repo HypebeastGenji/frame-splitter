@@ -4,6 +4,7 @@
 
 import h5py
 import numpy as np
+import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 def h5printR(item, leading = ''):
@@ -126,6 +127,63 @@ def reorder_list(*args, order):
         ordered_list = [arg[i] for i in order]
         ordered_lists.append(ordered_list)
     return ordered_lists
+
+
+def get_line(xs, slope, intercept):
+    return slope * xs + intercept
+
+def piecewise_linear(data, segments, quiet=False):
+    arrays = np.array_split(data, segments)
+    regression_array = np.zeros((segments, 2))
+
+    main_regression = stats.linregress(data)
+    main_regression_line = get_line(data[:, 0], main_regression.slope, main_regression.intercept)
+    if not quiet:
+        plt.scatter(data[:, 0], data[:, 1], alpha=0.5)
+        plt.plot(data[:, 0], main_regression_line, linewidth=4, color='red')
+
+    for idx, array in enumerate(arrays):
+        regression = stats.linregress(array)
+        regression_line = get_line(array[:, 0], regression.slope, regression.intercept)
+
+        regression_array[idx, 0] = regression.slope
+        regression_array[idx, 1] = regression.intercept
+
+        if not quiet:
+            plt.plot(array[:, 0], regression_line, linewidth=4, color='black')
+    return regression_array
+
+
+def new_piecewise_linear(data, segments, quiet=False):
+    arrays = np.array_split(data, segments)
+    regression_array = np.zeros((segments, 2))
+
+    main_regression = stats.linregress(data)
+    main_regression_line = get_line(data[:, 0], main_regression.slope, main_regression.intercept)
+    if not quiet:
+        plt.scatter(data[:, 0], data[:, 1], alpha=0.5)
+        plt.plot(data[:, 0], main_regression_line, linewidth=4, color='red')
+
+    xs = []
+    ys = []
+    for idx, array in enumerate(arrays):
+        regression = stats.linregress(array)
+        regression_line = get_line(array[:, 0], regression.slope, regression.intercept)
+        median = np.median(array[:, 0])
+        mean = np.mean(array[:, 1])
+        xs.append(median)
+        ys.append(mean)
+
+        regression_array[idx, 0] = regression.slope
+        regression_array[idx, 1] = regression.intercept
+
+#         if not quiet:
+#             plt.plot(array[:, 0], regression_line, linewidth=4, color='black')
+    plt.plot(xs, ys, color='purple', linewidth=4)
+    plt.show()
+    return regression_array
+
+
 
 
 ''' MIGHT NEED LATER
