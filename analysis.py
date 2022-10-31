@@ -2,6 +2,7 @@ from importlib.resources import path
 import os
 import pathlib
 from statistics import mean
+from turtle import color
 import h5py
 import yaml
 import numpy as np
@@ -350,7 +351,33 @@ def plot_timeseries(groups, scalar):
             # plt.plot(extracted_dicts)
         # print(extracted_dicts)
 
-plot_timeseries(GROUP_PATHS, 'velocity_2d_mm')
+# plot_timeseries(GROUP_PATHS, 'velocity_2d_mm')
+
+
+def plot_trace(extracted_dict, units='px', plot_style='seperate'): # summary doesnt work yet
+    if plot_style == 'summary':
+        fig, axes = plt.subplots(len(extracted_dict), 3, sharey=True)
+    for row, session in enumerate(extracted_dict):
+        if plot_style == 'seperate':
+            fig, axes = plt.subplots(1, 3, sharey=True)
+        for idx, condition in enumerate(extracted_dict[session]):
+            x_vals = extracted_dict[session][condition]['centroid_x_'+str(units)]
+            y_vals = extracted_dict[session][condition]['centroid_y_'+str(units)]
+            if plot_style == 'seperate':
+                axes[idx].plot(x_vals, y_vals)
+                axes[idx].set_title(condition)
+            elif plot_style == 'summary':
+                axes[row, idx].plot(x_vals, y_vals)
+                axes[row, idx].set_title(condition)
+        if plot_style == 'seperate':
+            plt.show()
+    if plot_style == 'summary':
+        plt.show()
+
+    
+
+    # print(extracted_dict)
+# plot_trace(extract_scalars(GROUP_PATHS[0], save_to_csv=False, raw=True), plot_style='seperate')
 
 ## ------------- Syllable Analysis ------------- ##
 
@@ -616,11 +643,11 @@ def transition_matrix(filename, mtype='cov'):
 # plot_extractions(GROUP_PATHS, plot_type='plot')
 
 # ## TABLE WITH MEANS AND ANOVA (ANOVA USE LIST OF MEANS NOT RAW DATA??)
-comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
-print(comparison_df)
+# comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
+# print(comparison_df)
 
-# ## COMPARE RAW SCALARS WITHIN SUBJECT
-compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=False)
+# # ## COMPARE RAW SCALARS WITHIN SUBJECT
+# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=False)
 
 
 
