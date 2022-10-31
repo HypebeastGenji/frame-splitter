@@ -1,8 +1,7 @@
+from email import header
 from importlib.resources import path
 import os
 import pathlib
-from statistics import mean
-from turtle import color
 import h5py
 import yaml
 import numpy as np
@@ -111,20 +110,44 @@ def simple_scalar_analysis(session_dict, group, scalar):
 
 def merge_subjects(session_titles, stat_list):
     compare_dict = {}
-    print(stat_list)
-    for idx, session in enumerate(stat_list):
-
-        # print(session_titles[idx])
-        # print(compare_dict)
-        session_id = get_mouse_id(session_titles[idx])
-        if session_id not in compare_dict:
-            compare_dict[session_id] = session
-            print(session_id)
-            print(session)
-        else:
-            compare_dict[session_id] += compare_dict[session_titles[idx]]
-            # print(session_id)
-            # print(session)
+    group_condtions = ['control', 'stim', 'post']
+    session_titles = np.array([get_mouse_id(session_title) for session_title in session_titles])
+    stat_array = np.array(stat_list)
+    for i in session_titles:
+        mask = session_titles == i
+        # print(mask)
+        titles = session_titles[mask]
+        print(titles)
+        # data = stat_array[mask]
+        # print(data)
+        # if len(titles) > 1:
+        #     print(titles)
+        # print(session_titles[mask])
+        # print(mask)
+        # print(i)
+        # if len(titles)
+    # for session_idx, session in enumerate(session_titles):
+    #     session_id = get_mouse_id(session)
+    #     for condition_idx, data_list in enumerate(stat_list):
+    #         if session_id not in compare_dict:
+    #             compare_dict[session_id] = {}
+    #             if condition_idx not in compare_dict[se]
+    #             compare_dict[session_id][group_condtions[condition_idx]] = [data_list[session_idx]]
+    #         else:
+    #             compare_dict[session_id][group_condtions[condition_idx]].append(data_list[session_idx])
+        
+    #     #     print(data_list[session_idx])
+    #     #     if session_id not in compare_dict:
+    #     #         compare_dict[session_id][group_condtions[condition_idx]] = [data_list[session_idx]]
+    #     # print("--")
+    #         # if session_id not in compare_dict:
+    #         #     compare_dict[session_id][group_condtions[condition_idx]] = [data_list[session_idx]]
+    #         # else:
+    #         #     compare_dict[session_id][group_condtions[condition_idx]].append(data_list[session_idx])
+    #         # print(session_id)
+    #         # print(session)
+    # print(session_titles)
+    # print(compare_dict)
 
     # print(compare_dict)
     # for i in compare_dict:
@@ -226,7 +249,7 @@ def compare_means(groups, scalar, stat='mean'):
         
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
         stat_list = scalar_analysis(extracted_dicts, scalar, stat)
-        print(stat_list)
+        # print(stat_list)
         mean_stat = [np.mean(stats_list) for stats_list in stat_list]
 
         comparison_dict[group_name]['control'] = mean_stat[0]
@@ -468,7 +491,7 @@ def sum_groups(sorted_dict):
     return sorted_dict
 
 
-def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable', 'Usage']):
+def plot_syllable_sums(sorted_dict, plot_type='line', titles=['Average Syllable Usage', 'Syllable', 'Usage']):
 
     means_list = []
     groups = list(sorted_dict['0'].keys())
@@ -484,7 +507,10 @@ def plot_syllable_sums(sorted_dict, titles=['Average Syllable Usage', 'Syllable'
             means_array[idx2, idx1] = sorted_dict[syllable][group]
 
     for idx, group_array in enumerate(means_array):
-        plt.plot(syllables, group_array, label=groups[idx], marker='o')
+        if plot_type == 'line':
+            plt.plot(syllables, group_array, label=groups[idx], marker='o')
+        elif plot_type == 'scatter':
+            plt.scatter(syllables, group_array, label=groups[idx], alpha=0.5)
         plt.tick_params(axis='x', labelrotation=90)
         plt.xticks(syllables)
         plt.legend()
@@ -631,9 +657,34 @@ def transition_matrix(filename, mtype='cov'):
 
 # transition_matrix(transition_matrix_dir)
 
+def get_group_headers(sum_groups):
+    return list(sum_groups['0'].keys())
 
 
+def get_location_arrays(x_vals, y_vals, return_headers=True):
+    headers = get_group_headers(x_vals)
+    x_list = []
+    y_list = []
+    for i in x_vals:
+        x_row = np.array([x_vals[i][j] for j in x_vals[i]])
+        y_row = np.array([y_vals[i][j] for j in x_vals[i]])
+        x_list.append(x_row)
+        y_list.append(y_row)
+    x_array = np.array(x_list)
+    y_array = np.array(y_list)
 
+    if return_headers:
+        return (x_array, y_array), headers
+    else:
+        return (x_array, y_array)
+
+def plot_syllable_locations(arrays, headers):
+    x_array, y_array = arrays
+    for idx, header in enumerate(headers):
+        plt.scatter(x_array[:, idx], y_array[:, idx], label=header, alpha=0.5)
+    plt.legend()
+    plt.xlim(0, 200)
+    plt.show()
 
 
 
@@ -655,15 +706,19 @@ def transition_matrix(filename, mtype='cov'):
 ### SYLLABLE ANALYSIS ###
 
 ## MAP SYLLABLE NUM TO LABEL
-# SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
+SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
 
 # ## PLOT OVERALL SYLLABLE USAGE
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'usage')))
 
 # ## PLOT OVERALL VELOCITY
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
+plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), titles=['Spots', 'Syllable', 'Trace'], plot_type='scatter')
+arrays, headers = get_location_arrays(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_y_px_mean')), return_headers=True)
 
-# ## PRINT SYLLABLE OVERVIEW
+plot_syllable_locations(arrays, headers)
+
+# # ## PRINT SYLLABLE OVERVIEW
 # syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
 # print_syllable_overview(syllable_dict, names=True)
 
