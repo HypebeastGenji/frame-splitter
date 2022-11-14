@@ -4,6 +4,7 @@
 
 import h5py
 import numpy as np
+import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
@@ -184,7 +185,41 @@ def new_piecewise_linear(data, segments, quiet=False):
     return regression_array
 
 
+def plot_comparison(df, groups=None):
+    comp_group = ['10Hz WT', '10Hz WT sham']
 
+    conditions = ['control', 'stim', 'post']
+    for condition in conditions:
+        x_vals = comp_group
+        y_vals = [df['10Hz WT'].loc[condition], df['10Hz WT sham'].loc[condition]]
+        plt.bar(x_vals, y_vals)
+        plt.ylim((0, 3))
+        plt.xlabel( '10Hz rTMS (' + str(condition) + ')', fontsize=18)
+        plt.ylabel('Velociy (mm/frame)', fontsize=18)
+        
+        plt.show()
+
+
+def avg_df(frames, input_type='df'):
+    arrays = []
+    for df in frames:
+        if input_type == 'dict':
+            print(df)
+
+            df = pd.DataFrame(df, index=[0])
+            print(df)
+        arrays.append(df.to_numpy())
+    mean = sum(arrays) / 2
+    mean_df = pd.DataFrame(mean)
+    print(mean_df)
+    return mean_df
+
+'''
+Error bars
+converge
+anova
+
+'''
 
 ''' MIGHT NEED LATER
 

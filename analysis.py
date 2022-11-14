@@ -1,5 +1,3 @@
-from email import header
-from importlib.resources import path
 import os
 import pathlib
 import h5py
@@ -10,7 +8,7 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
 
-from utils import get_line, get_mouse_id, multi_bar_plot, new_piecewise_linear, piecewise_linear, reorder_list
+from utils import get_line, get_mouse_id, multi_bar_plot, new_piecewise_linear, piecewise_linear, reorder_list, plot_comparison, avg_df
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -30,7 +28,7 @@ GROUP_PATHS = get_group_paths(GROUPS, data_dir)
 
 
 
-def extract_scalars(base_dir, raw=False, save_to_csv=False):
+def extract_scalars(base_dir, raw=False, save_to_csv=False, destination='../scalar_csv/'):
     files = os.listdir(base_dir)
     print("[EXTRACTING SCALARS FROM", len(files), "FILES]")
 
@@ -45,6 +43,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
         session_files = files
 
     session_dicts = {}
+    count = 0
     for session in session_files:
         if raw == True:
             session = session.split(base_dir)[1]
@@ -68,7 +67,8 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
                 scalar_dict[scalar] = scalar_data
             scalar_df = pd.DataFrame(scalar_dict)
             if save_to_csv == True:
-                scalar_df.to_csv('./scalar_csv/'+condition_session_title+".csv")
+                scalar_df.to_csv(destination + condition_session_title+".csv")
+                # print(condition_session_title.split('(')[1][:-1])
             if session.split("-")[0] not in session_dicts[session_title]:
                 if raw == True:
                     # session_dicts[session_title] = scalar_df
@@ -80,6 +80,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False):
             # timestamps = f['timestamps']
             # print(timestamps)
         # break
+        count += 1
     print("[EXTRACTED", len(session_dicts), "SESSIONS WITH CONTROL, STIM AND POST]")
     return session_dicts
 
@@ -170,8 +171,10 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
         stim_summary = session_dict[session]['stim'].describe()
         post_summary = session_dict[session]['post'].describe()
 
-        # print(control_summary)
-        # print(session_dict[session]['control'])
+        print(control_summary['velocity_2d_mm'])
+        print("##########")
+        print(session_dict[session]['control'].sem())
+        print(np.mean(session_dict[session]['control']))
         # print(session)
         # print(get_mouse_id(session))
 
@@ -188,7 +191,7 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
     stat_list.append(stims)
     stat_list.append(posts)
 
-    merge_subjects(session_titles, stat_list)
+    # merge_subjects(session_titles, stat_list)
 
 
     ## PLOT MEAN OF GROUP MEANS
@@ -397,8 +400,81 @@ def plot_trace(extracted_dict, units='px', plot_style='seperate'): # summary doe
     if plot_style == 'summary':
         plt.show()
 
-    
 
+def save_csv(group_paths, destination):
+
+    for group in group_paths:
+        if not os.path.exists(destination+'/'+str(group.split('/')[-2])+'/'):
+            os.makedirs(destination+'/'+str(group.split('/')[-2])+'/')
+        extracted_dicts = extract_scalars(group, save_to_csv=True, raw=True, destination=destination+'/'+str(group.split('/')[-2])+'/')
+
+
+def converge_csv(group_paths, scalar='velocity_2d_mm', save_csv=False, destination='../scalar_csv/'):
+    conditions = ['control', 'stim', 'post']
+    converged_list = []
+
+    for group in group_paths:
+        converged = {}
+        converged_df = { 
+            "ID": [],
+            "Strain": [],
+            "Treatment": [],
+            "Timepoint": [],
+            "Value": []
+        }
+        extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        for session in extracted_dicts:
+            mouse_id = get_mouse_id(session)
+            if mouse_id not in converged:
+                converged[mouse_id] = []
+                converged[mouse_id].append(extracted_dicts[session])
+                # mouse_data.append(extracted_dicts[session])
+            else:
+                # averaged = converged[mouse_id] 
+                converged[mouse_id].append(extracted_dicts[session])
+        name = pathlib.PurePath(group).name
+        
+        for mouse_data in converged:
+            if len(converged[mouse_data]) > 1:
+                duplicate_data = []
+                for duplicates in converged[mouse_data]:
+                    condition_data = []
+                    for condition in conditions:
+                        condition_data.append(duplicates[condition].describe()[scalar]['mean'])
+                    duplicate_data.append(condition_data)
+                duplicate_array = np.array(duplicate_data)
+                mouse_mean = np.mean(duplicate_array, axis=0)
+                mean_list = list(mouse_mean)
+                converged[mouse_data] = mean_list
+                
+            else:
+                condition_data = []
+                for condition in conditions:
+                    for single in converged[mouse_data]:
+                        condition_data.append(single[condition].describe()[scalar]['mean'])
+                converged[mouse_data] = condition_data
+
+        for data in converged:
+            for idx, condition in enumerate(conditions):
+                converged_df['ID'].append(data)
+                if 'WT' in name:
+                    converged_df['Strain'].append('WT')
+                elif 'ephrin' in name:
+                    converged_df['Strain'].append('Ephrin')
+                if 'sham' in name:
+                    converged_df['Treatment'].append('Sham')
+                else:
+                    converged_df['Treatment'].append('10Hz')
+                converged_df['Timepoint'].append(condition)
+                converged_df['Value'].append(converged[data][idx])
+        converged_list.append(pd.DataFrame(converged_df))
+    final_df = pd.concat(converged_list, axis=0)
+    if save_csv:
+        final_df.to_csv(destination + 'grouped_scalars2.csv')
+    return final_df
+
+
+converge_csv(GROUP_PATHS, scalar='velocity_2d_mm', save_csv=False)
     # print(extracted_dict)
 # plot_trace(extract_scalars(GROUP_PATHS[0], save_to_csv=False, raw=True), plot_style='seperate')
 
@@ -693,15 +769,25 @@ def plot_syllable_locations(arrays, headers):
 # PLOT RAW EXTRACTION DATA
 # plot_extractions(GROUP_PATHS, plot_type='plot')
 
+extracted = extract_scalars()
+
 # ## TABLE WITH MEANS AND ANOVA (ANOVA USE LIST OF MEANS NOT RAW DATA??)
 # comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
 # print(comparison_df)
 
+# plot_comparison(comparison_df)
+
 # # ## COMPARE RAW SCALARS WITHIN SUBJECT
-# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=False)
+# compare_subjects(get_subject_dict(GROUP_PATHS), 'velocity_2d_mm', 'mean', plot=True)
+
+# ## PLOT TIMESERIES OF VELOCITY
+# plot_timeseries(GROUP_PATHS, 'velocity_2d_mm')
+
+# ## PLOT TRACE
+# plot_trace(extract_scalars(GROUP_PATHS[0], save_to_csv=False, raw=True), plot_style='seperate')
 
 
-
+save_csv(GROUP_PATHS, destination='../scalar_csv')
 
 ### SYLLABLE ANALYSIS ###
 
@@ -713,10 +799,12 @@ SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
 
 # ## PLOT OVERALL VELOCITY
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
-plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), titles=['Spots', 'Syllable', 'Trace'], plot_type='scatter')
-arrays, headers = get_location_arrays(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_y_px_mean')), return_headers=True)
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), titles=['Spots', 'Syllable', 'Trace'], plot_type='scatter')
 
-plot_syllable_locations(arrays, headers)
+# SYLLABLE LOCATIONS
+# arrays, headers = get_location_arrays(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_y_px_mean')), return_headers=True)
+# plot_syllable_locations(arrays, headers)
+
 
 # # ## PRINT SYLLABLE OVERVIEW
 # syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
