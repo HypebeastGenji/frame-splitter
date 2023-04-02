@@ -6,10 +6,10 @@ import plotly.graph_objects as go
 
 moseq_dir = pathlib.Path.cwd().parent
 
-wt_matrix = moseq_dir/'data/WT vs EPH (10Hz)/moseq_output/final-model/TM bigram/WT - stim_bigram_transition_matrix.csv'
-eph_matrix = moseq_dir/'data/WT vs EPH (10Hz)/moseq_output/final-model/TM bigram/Eph - stim_bigram_transition_matrix.csv'
-wt_counts =  moseq_dir/'data/WT vs EPH (10Hz)/moseq_output/final-model/TM bigram/WT - stim_syllable_counts.csv'
-eph_counts =  moseq_dir/'data/WT vs EPH (10Hz)/moseq_output/final-model/TM bigram/Eph - stim_syllable_counts.csv'
+rtms_matrix = moseq_dir/'data/rTMS/model/rTMS - stim_bigram_transition_matrix.csv'
+sham_matrix = moseq_dir/'data/rTMS/model/sham - stim_bigram_transition_matrix.csv'
+rtms_counts =  moseq_dir/'data/rTMS/model/rTMS - stim_syllable_counts.csv'
+sham_counts =  moseq_dir/'data/rTMS/model/sham - stim_syllable_counts.csv'
 
 def plot_transitions(matrix, counts, layout='circular', read=True, change=False):
     # Read in the transition matrix from CSV file
@@ -59,8 +59,8 @@ def plot_transitions(matrix, counts, layout='circular', read=True, change=False)
     # Show the plot
     plt.show()
 
-# plot_transitions(wt_matrix, wt_counts)
-# plot_transitions(eph_matrix, eph_counts)
+plot_transitions(sham_matrix, sham_counts)
+plot_transitions(rtms_matrix, rtms_counts)
 
 
 
@@ -76,8 +76,9 @@ def calc_diff(matrices, counts):
 
     return prob_change, count_change
 
-prob_diff, count_diff = calc_diff([wt_matrix, eph_matrix], [wt_counts, eph_counts])
-
-plot_transitions(prob_diff, count_diff, read=False, change=True, layout="spring")
+prob_diff, count_diff = calc_diff([rtms_matrix, sham_matrix], [sham_counts, rtms_counts])
+print(count_diff)
+# need to make counts positive
+plot_transitions(prob_diff, count_diff, read=False, change=True, layout="circular")
 
 
