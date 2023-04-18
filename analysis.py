@@ -1084,3 +1084,10 @@ t_test(add_syllables(syllable_dict, 5, full=True))
 # transition_matrix(transition_matrix_dir, mtype='corr')
 # transition_matrix(transition_matrix_dir, mtype='cov')
 
+
+
+def scalar_summary(filename):
+    data = pd.read_csv(filename)
+    print(data)
+
+scalar_summary()
