@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import pathlib
 import pickle
 
+import statsmodels.api as sm
+from statsmodels.formula.api import mixedlm
+
 from utils import get_line, get_mouse_id, multi_bar_plot, \
                   new_piecewise_linear, piecewise_linear, reorder_list, plot_comparison, avg_df, pickle_save
 
@@ -532,7 +535,9 @@ def converge_csv(group_paths, scalar='velocity_2d_mm', save_csv=False, destinati
 
 # mean_df_path_usage_prob = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
 # mean_df_path_usage_nums = data_dir/'WT vs EPH (10Hz)'/'mean_df_nums.csv'
-mean_df_path_usage_prob = data_dir/'rTMS'/'mean_df2.csv'
+
+# mean_df_path_usage_prob = data_dir/'rTMS'/'mean_df2.csv'
+mean_df_path_usage_prob = data_dir/'rTMS'/'mean_df_counts.csv'
 
 syllable_info_path = data_dir/'rTMS'/'model'/'syll_info.yaml'
 
@@ -737,16 +742,24 @@ def create_mask(syllable_dict, search_for='GO'):
 
     return mask
         
+# STAT_DICT {
+
+# }
 
 
-
-def add_syllables(syllable_dict, mask=None, syllable_num='all'):
+def add_syllables(syllable_dict, stat, full=False, mask=None, syllable_num='all'):
     syl_stat = []
     if syllable_num == 'all':
         for syl in syllable_dict:
-            syl_df = pd.DataFrame(syllable_dict[syl])
-            # print(syl_df)
-            syl_stat.append(list(syl_df.iloc[2]))
+            if full == True:
+                if syl in SYLLABLE_MAP:
+                    syl_df = pd.DataFrame(syllable_dict[syl])
+                    # print(syl_df)
+                    syl_stat.append(list(syl_df.iloc[stat]))
+            else:
+                syl_df = pd.DataFrame(syllable_dict[syl])
+                    # print(syl_df)
+                syl_stat.append(list(syl_df.iloc[stat]))
     syl_stat = np.array(syl_stat)
 
     if mask is not None:
@@ -755,21 +768,80 @@ def add_syllables(syllable_dict, mask=None, syllable_num='all'):
     else:
         return syl_stat
     
-def stat_calc(stat_array):
+def stat_calc(arrays):
     #rTMS - control  rTMS - post  rTMS - stim  sham - control  sham - post  sham - stim
+    stat_array = arrays[0]
+    counts_array = arrays[1]
+    print(counts_array)
+    print("---")
 
     stat_array = stat_array*30
 
     stat_avg = np.mean(stat_array, axis=0)
 
-    # print(stat_array)
-    # print(stat_array[:,0])
-    # print(stat_avg)
-    # print()
-
     locomotion = stat_array > 30
-    print(locomotion)
-    print(stat_array[locomotion])
+
+    locomotion_counts = counts_array * locomotion
+
+    print(locomotion_counts)
+    print(locomotion_counts[:, 2])
+    print(locomotion_counts[:, 5])
+
+    t_stim_rtms_sham, p_stim_rtms_sham = stats.ttest_rel(locomotion_counts[:, 2], locomotion_counts[:, 5])
+    t_post_rtms_sham, p_post_rtms_sham = stats.ttest_rel(locomotion_counts[:, 1], locomotion_counts[:, 4])
+    t_post_stim_sham, p_post_stim_sham = stats.ttest_rel(locomotion_counts[:, 5], locomotion_counts[:, 4])
+    t_post_stim_rtms, p_post_stim_rtms = stats.ttest_rel(locomotion_counts[:, 2], locomotion_counts[:, 1])
+
+    print(t_stim_rtms_sham, p_stim_rtms_sham)
+    # Not sig diff between amount of locomotion syllables in rTMS vs sham during STIM-stimulation (p=0.13427)
+    print(t_post_rtms_sham, p_post_rtms_sham)
+    # Sig diff between amount of locomotion syllables in rTMS vs sham during POST-stimulation (p=0.0082873)
+    print(t_post_stim_sham, p_post_stim_sham)
+    # Sig diff between amount of locomotion syllables in stim vs post in SHAM (p=0.0138149)
+    print(t_post_stim_rtms, p_post_stim_rtms)
+    # Not sig diff between amount of locomotion syllables in stim vs post in rTMS (p=0.0138149)
+
+    locomotion_mean = np.sum(locomotion_counts, axis=0)
+    locomotion_std = np.std(locomotion_counts, axis=0)
+    print(locomotion_mean)
+    print(locomotion_std)
+
+
+
+    # print(stat_array)
+    anova_array = stat_array
+    anova_df = pd.DataFrame(anova_array, columns=['rTMS - control',  'rTMS - post',  'rTMS - stim',  'sham - control',  'sham - post',  'sham - stim'])
+    # print(anova_df)
+    # print()
+    anova_df['Syllable'] = list(anova_df.index)
+    df_melted = pd.melt(anova_df, id_vars=['Syllable'], value_vars=['rTMS - control',  'rTMS - post',  'rTMS - stim',  'sham - control',  'sham - post',  'sham - stim'],
+                    var_name='Group', value_name='Velocity')
+    
+    model = mixedlm("Velocity ~ Group", df_melted, groups=df_melted["Syllable"])
+    result = model.fit()
+    print(result.summary())
+
+    t_stim_rtms_sham2, p_stim_rtms_sham2 = stats.ttest_rel(stat_array[:, 2], stat_array[:, 5])
+    t_post_rtms_sham2, p_post_rtms_sham2 = stats.ttest_rel(stat_array[:, 1], stat_array[:, 4])
+    t_post_stim_sham2, p_post_stim_sham2 = stats.ttest_rel(stat_array[:, 5], stat_array[:, 4])
+    t_post_stim_rtms2, p_post_stim_rtms2 = stats.ttest_rel(stat_array[:, 2], stat_array[:, 1])
+
+    print(t_stim_rtms_sham2, p_stim_rtms_sham2)
+    # # Not sig diff between amount of locomotion syllables in rTMS vs sham during STIM-stimulation (p=0.13427)
+    print(t_post_rtms_sham2, p_post_rtms_sham2)
+    # Sig diff between amount of locomotion syllables in rTMS vs sham during POST-stimulation (p=0.0082873)
+    print(t_post_stim_sham2, p_post_stim_sham2)
+    # # Sig diff between amount of locomotion syllables in stim vs post in SHAM (p=0.0138149)
+    print(t_post_stim_rtms2, p_post_stim_rtms2)
+    # # Not sig diff between amount of locomotion syllables in stim vs post in rTMS (p=0.0138149)
+
+    velocity_mean = np.mean(stat_array, axis=0)
+    velocity_std = np.std(stat_array, axis=0)
+    print(velocity_mean)
+    print(velocity_std)
+
+    # f, p = stats.f_oneway(anova_array[:, 0], anova_array[:, 1], anova_array[:, 2], anova_array[:, 3], anova_array[:, 4], anova_array[:, 5])
+    # print(f, p)
 
     # stat_sums = np.sum(stat_array, axis=0)
     
@@ -900,6 +972,45 @@ def plot_syllable_locations(arrays, headers):
     plt.xlim(0, 200)
     plt.show()
 
+COLUMNS = ['rTMS - control',  'rTMS - post',  'rTMS - stim',  'sham - control',  'sham - post',  'sham - stim']
+
+def rm_anova(stat_array):
+    anova_array = stat_array
+    anova_df = pd.DataFrame(anova_array, columns=['rTMS - control',  'rTMS - post',  'rTMS - stim',  'sham - control',  'sham - post',  'sham - stim'])
+    # print(anova_df)
+    # print()
+    anova_df['Syllable'] = list(anova_df.index)
+    df_melted = pd.melt(anova_df, id_vars=['Syllable'], value_vars=['rTMS - control',  'rTMS - post',  'rTMS - stim',  'sham - control',  'sham - post',  'sham - stim'],
+                    var_name='Group', value_name='Velocity')
+    
+    model = mixedlm("Velocity ~ Group", df_melted, groups=df_melted["Syllable"])
+    result = model.fit()
+    print(result.summary())
+
+
+def t_test(stat_array, t_type='paired'):
+    reference_group = stat_array[:, 2]
+    cols = [stat_array[:,i] for i in range(len(COLUMNS))]
+    if t_type == 'paired':
+        t_test_result = []
+        for idx, col in enumerate(cols):
+            if col is not reference_group:
+                t_stat, p_value = stats.ttest_rel(reference_group, col)
+                t_test_result.append({'Group': COLUMNS[idx], 'T-statistic': t_stat, 'P-value': p_value})
+        for result in t_test_result:
+            print(f"Group: {result['Group']}, T-statistic: {result['T-statistic']}, P-value: {result['P-value']}") 
+        # t_stim_rtms_sham2, p_stim_rtms_sham2 = stats.ttest_rel(stat_array[:, 2], stat_array[:, 5])
+
+
+
+def time_spent(counts, duration):
+    print(counts)
+    print(duration)
+    time_spent = counts * duration
+    print(time_spent)
+    rm_anova(time_spent)
+    
+
 
 
 ### RAW ANALYSIS ###
@@ -950,9 +1061,16 @@ syllable_dict = syllable_overview(read_df(mean_df_path_usage_prob), ["usage", "d
 # stop_mask = create_mask(syllable_dict, search_for='STOP')
 # stat_calc(add_syllables(syllable_dict, mask=go_mask))
 # stat_calc(add_syllables(syllable_dict, mask=stop_mask))
+# vel, count
+# stat_calc([add_syllables(syllable_dict, 2, full=True), add_syllables(syllable_dict, 0, full=True)])
 
-stat_calc(add_syllables(syllable_dict))
+rm_anova(add_syllables(syllable_dict, 1, full=True))
 
+# counts, duration
+time_spent(add_syllables(syllable_dict, 0, full=True), add_syllables(syllable_dict, 1, full=True))
+
+rm_anova(add_syllables(syllable_dict, 5, full=True))
+t_test(add_syllables(syllable_dict, 5, full=True))
 
 # ## PLOT SYLLABLE OVERVIEW
 # rapid_plot(mean_df_path_usage_prob, 'usage', title='label')
@@ -965,3 +1083,4 @@ stat_calc(add_syllables(syllable_dict))
 # ## COVARIENCE AND CORRELATIONAL MATRIX
 # transition_matrix(transition_matrix_dir, mtype='corr')
 # transition_matrix(transition_matrix_dir, mtype='cov')
+
