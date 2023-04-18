@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+import pickle
 
 def h5printR(item, leading = ''):
     for key in item:
@@ -213,6 +214,12 @@ def avg_df(frames, input_type='df'):
     mean_df = pd.DataFrame(mean)
     print(mean_df)
     return mean_df
+
+
+def pickle_save(data, dest):
+    with open(dest, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        print('[SAVED]: ' + str(dest))
 
 '''
 Error bars

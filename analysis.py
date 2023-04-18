@@ -7,8 +7,10 @@ import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pathlib
+import pickle
 
-from utils import get_line, get_mouse_id, multi_bar_plot, new_piecewise_linear, piecewise_linear, reorder_list, plot_comparison, avg_df
+from utils import get_line, get_mouse_id, multi_bar_plot, \
+                  new_piecewise_linear, piecewise_linear, reorder_list, plot_comparison, avg_df, pickle_save
 
 
 moseq_dir = pathlib.Path.cwd().parent
@@ -34,7 +36,7 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False, destination='../scal
 
     if raw == True:
         session_files = []
-        bad_sessions = ['session_20190205095213 WT3 10Hz', 'session_20190206115259 WT6 10Hz']
+        bad_sessions = ['session_20190205095213 WT3 10Hz', 'session_20190206115259 WT6 10Hz', 'session_20190218101113 3883 10Hz coil came off', 'session_20190218112308 3907 10Hz coil came off', 'session_20190113151744 WT2 Sham', 'session_20190113160334 WT4 Sham', 'session_20190113163631 WT5 Sham', 'session_20190113170857 WT1 Sham', 'session_20190113174353 WT6 Sham', 'session_20190113182616 WT7 Sham', 'session_20190113190625 WT3 Sham', 'session_20190128093115 WT5 sham', 'session_20190128100411 WT6 sham', 'session_20190128103838 WT4 sham', 'session_20190131104916 WT3 Sham coil fell off', 'session_20190131121155 WT5 Sham', 'session_20190131124434 WT6 Sham coil fell off', 'session_20190131162118 WT3 Sham coil fell off', 'session_20190131165326 WT6 Sham coil fell off', 'session_20190117092631 3906 Sham', 'session_20190117100227 3928 Sham', 'session_20190117103940 3876 Sham', 'session_20190117111450 3885 Sham', 'session_20190117114725 3887 Sham', 'session_20190117122252 3897 Sham', 'session_20190128140048 3928 sham', 'session_20190128143448 3876 sham', 'session_20190128150913 3885 sham', 'session_20190128154317 3890 sham', 'session_20190128162613 3895 sham', 'session_20190128173218 3883 sham', 'session_20190128180452 3907 sham', 'session_20190128184018 3918 sham', 'session_20190131142959 3906 Sham', 'session_20190201114235 3890 Sham', 'session_20190201122324 3876 Sham', 'session_20190201130116 should be 3879 Sham', 'session_20190201133253 3883 Sham', 'session_20190201140423 3889 Sham', 'session_20190201144458 3895 Sham']
         for session in files:
             if session[:7] == 'session' and session not in bad_sessions:
                 result_filepath = base_dir + session + '/proc/results_00.h5'
@@ -91,9 +93,24 @@ def extract_scalars(base_dir, raw=False, save_to_csv=False, destination='../scal
 # extracted_dicts = extract_scalars('../data/10Hz WT/', save_to_csv=False, raw=True)
 # print(extracted_dicts)
 
-def plot_extractions(groups, plot_type='plot'):
+def save_pickles(groups):
     for group in groups:
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        pickle_save(extracted_dicts, data_dir/'scalars'/str(group.split("/")[-2]+'.pickle'))
+
+def get_pickles(group):
+    with open(data_dir/'scalars'/str(group[:-1]+'.pickle'), 'rb') as f:
+        data = pickle.load(f)
+    return data
+
+
+def plot_extractions(groups, plot_type='plot', extract=False):
+    for group in groups:
+        if extract:
+            extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        else:
+            group = group.split('/')[-2]+'/'
+            extracted_dicts = get_pickles(group)
         scalar_analysis(extracted_dicts, 'velocity_2d_mm', 'mean', session_stats=True, overall_stats=True, plot=plot_type)
 
 
@@ -171,10 +188,10 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
         stim_summary = session_dict[session]['stim'].describe()
         post_summary = session_dict[session]['post'].describe()
 
-        print(control_summary['velocity_2d_mm'])
-        print("##########")
-        print(session_dict[session]['control'].sem())
-        print(np.mean(session_dict[session]['control']))
+        # print(control_summary['velocity_2d_mm'])
+        # print("##########")
+        # print(session_dict[session]['control'].sem())
+        # print(np.mean(session_dict[session]['control']))
         # print(session)
         # print(get_mouse_id(session))
 
@@ -200,7 +217,7 @@ def scalar_analysis(session_dict, scalar, stat, overall_stats=False, session_sta
             mean_of_means = []
             count = 0
             for group in stat_list:
-                print("Mean for", group_condtions[count], "group:", np.mean(group))
+                # print("Mean for", group_condtions[count], "group:", np.mean(group))
                 mean_of_means.append(np.mean(group))
                 count += 1
             if plot == 'plot':
@@ -346,12 +363,22 @@ def compare_subjects(comparison_dict, scalar, stat, plot=False):
 def plot_timeseries(groups, scalar):
     for group in groups:
         extracted_dicts = extract_scalars(group, save_to_csv=False, raw=True)
+        group_data = []
+        group_indices = []
         for session in extracted_dicts:
             # print(extracted_dicts[session][])
+            print(session)
+            session_data = []
+            session_indices = []
             for condition in extracted_dicts[session]:
                 # extracted_dicts[session][condition][scalar].plot(label=condition)
+                print(condition)
                 data = extracted_dicts[session][condition][scalar].to_numpy()
+                print(data)
+                # session_data.append(data)
+                # print(data)
                 indices = np.array(extracted_dicts[session][condition][scalar].index.values.tolist())
+                print(indices)
             
                 plt.plot(indices, data)
                 
@@ -362,7 +389,12 @@ def plot_timeseries(groups, scalar):
 
                 stacked = np.stack((indices, data))
                 stacked = stacked.T
-
+                print(stacked)
+                session_data.append(stacked)
+            # print(session_data)
+            # print(np.concatenate((session_data[0], session_data[1], session_data[2])))
+            session_array = np.concatenate((session_data[0], session_data[1], session_data[2]))
+            
                 # piecewise_linear(stacked, 10)
                 # new_piecewise_linear(stacked, 10)
 
@@ -374,13 +406,16 @@ def plot_timeseries(groups, scalar):
             plt.ylabel(scalar.capitalize())
             plt.show()
             break
-            # plt.plot(extracted_dicts)
+            plt.plot(extracted_dicts)
         # print(extracted_dicts)
 
 # plot_timeseries(GROUP_PATHS, 'velocity_2d_mm')
 
 
 def plot_trace(extracted_dict, units='px', plot_style='seperate'): # summary doesnt work yet
+    overall_x = {}
+    overall_y = {}
+
     if plot_style == 'summary':
         fig, axes = plt.subplots(len(extracted_dict), 3, sharey=True)
     for row, session in enumerate(extracted_dict):
@@ -389,6 +424,8 @@ def plot_trace(extracted_dict, units='px', plot_style='seperate'): # summary doe
         for idx, condition in enumerate(extracted_dict[session]):
             x_vals = extracted_dict[session][condition]['centroid_x_'+str(units)]
             y_vals = extracted_dict[session][condition]['centroid_y_'+str(units)]
+            # overall_x.append(x_vals)
+            # overall_y.append(y_vals)
             if plot_style == 'seperate':
                 axes[idx].plot(x_vals, y_vals)
                 axes[idx].set_title(condition)
@@ -399,6 +436,14 @@ def plot_trace(extracted_dict, units='px', plot_style='seperate'): # summary doe
             plt.show()
     if plot_style == 'summary':
         plt.show()
+
+    # # plt.plot(overal_x, overal_y)
+    # for i in range(len(overal_x)):
+    #     plt.plot(overal_x[i], overal_y[i], label=i)
+    # plt.title("Trace")
+    # plt.legend()
+    # plt.show()
+
 
 
 def save_csv(group_paths, destination):
@@ -470,11 +515,13 @@ def converge_csv(group_paths, scalar='velocity_2d_mm', save_csv=False, destinati
         converged_list.append(pd.DataFrame(converged_df))
     final_df = pd.concat(converged_list, axis=0)
     if save_csv:
-        final_df.to_csv(destination + 'grouped_scalars2.csv')
+        final_df.to_csv(destination + 'grouped_scalars_y_px.csv')
     return final_df
 
 
-converge_csv(GROUP_PATHS, scalar='velocity_2d_mm', save_csv=False)
+# converge_csv(GROUP_PATHS, scalar='centroid_y_px', save_csv=True)
+
+
     # print(extracted_dict)
 # plot_trace(extract_scalars(GROUP_PATHS[0], save_to_csv=False, raw=True), plot_style='seperate')
 
@@ -483,10 +530,11 @@ converge_csv(GROUP_PATHS, scalar='velocity_2d_mm', save_csv=False)
 # mean_df_path = '../data/WT vs EPH (10Hz)/mean_df.csv'
 # scalar_df_path = '../data/WT vs EPH (10Hz)/scalar_df.csv'
 
-mean_df_path_usage_prob = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
-mean_df_path_usage_nums = data_dir/'WT vs EPH (10Hz)'/'mean_df_nums.csv'
+# mean_df_path_usage_prob = data_dir/'WT vs EPH (10Hz)'/'mean_df.csv'
+# mean_df_path_usage_nums = data_dir/'WT vs EPH (10Hz)'/'mean_df_nums.csv'
+mean_df_path_usage_prob = data_dir/'rTMS'/'mean_df2.csv'
 
-syllable_info_path = data_dir/'WT vs EPH (10Hz)'/'syll_info.yaml'
+syllable_info_path = data_dir/'rTMS'/'model'/'syll_info.yaml'
 
 
 def get_syllable_map(filename, info=['label']):
@@ -655,6 +703,96 @@ def print_syllable_overview(syllable_dict, syllable_num='all', names=False):
 # # print(syllable_dict)
 # print_syllable_overview(syllable_dict, names=True)
 
+SYLLABLE_SETTINGS = {
+        "GO":['walk', 'raise', 'rear', 'inspect', 'drop'],
+        "STOP": ['scrunch', 'stop' , 'freeze', 'scratch']
+    }
+
+
+def create_mask(syllable_dict, search_for='GO'):
+    keys = list(syllable_dict.keys())
+    full_keys = list(SYLLABLE_MAP.keys())
+    # print(keys)
+    # print(full_keys)
+
+    # print(SYLLABLE_MAP)
+
+    mask = np.logical_not(np.ones(len(keys)))
+
+
+    for syl in keys:
+
+        if syl in full_keys:
+            # print(syl)
+            # print(full_keys[int(syl)])
+            # print(SYLLABLE_MAP[syl][0])
+            if SYLLABLE_MAP[syl][0] in SYLLABLE_SETTINGS[search_for]:
+                mask[int(syl)] = True
+
+
+        # else:
+        #     print(syl)
+        #     print("-")
+        #     print()
+
+    return mask
+        
+
+
+
+def add_syllables(syllable_dict, mask=None, syllable_num='all'):
+    syl_stat = []
+    if syllable_num == 'all':
+        for syl in syllable_dict:
+            syl_df = pd.DataFrame(syllable_dict[syl])
+            # print(syl_df)
+            syl_stat.append(list(syl_df.iloc[2]))
+    syl_stat = np.array(syl_stat)
+
+    if mask is not None:
+        mask_stat = syl_stat[mask]
+        return mask_stat
+    else:
+        return syl_stat
+    
+def stat_calc(stat_array):
+    #rTMS - control  rTMS - post  rTMS - stim  sham - control  sham - post  sham - stim
+
+    stat_array = stat_array*30
+
+    stat_avg = np.mean(stat_array, axis=0)
+
+    # print(stat_array)
+    # print(stat_array[:,0])
+    # print(stat_avg)
+    # print()
+
+    locomotion = stat_array > 30
+    print(locomotion)
+    print(stat_array[locomotion])
+
+    # stat_sums = np.sum(stat_array, axis=0)
+    
+    # f, p = stats.f_oneway(stat_array[:,2], stat_array[:,5])
+    # t, pv = stats.ttest_ind(stat_array[:,2], stat_array[:,5])
+    # print(f)
+    # print(p)
+    # print(t)
+    # print(pv)
+    
+
+    # print(go_sums)
+   
+
+
+
+    # return syl_stat
+
+
+
+
+
+
 
 def plot_syllable_overview(syllable_dict, scalar, syllable_num='0', rapid_plot=False, title='label'):
     keys = list(syllable_dict.keys())
@@ -702,10 +840,10 @@ def rapid_plot(filename, scalar, title='label'):
 def syllable_count(syllable_map, remove_error=True):
     syllable_dict = {}
     for syllable in syllable_map.values():
-        if syllable not in syllable_dict:
-            syllable_dict[syllable] = 1
+        if syllable.strip() not in syllable_dict:
+            syllable_dict[syllable.strip()] = 1
         else: 
-            syllable_dict[syllable] += 1
+            syllable_dict[syllable.strip()] += 1
     return syllable_dict
 
 
@@ -768,8 +906,7 @@ def plot_syllable_locations(arrays, headers):
 
 # PLOT RAW EXTRACTION DATA
 # plot_extractions(GROUP_PATHS, plot_type='plot')
-
-extracted = extract_scalars()
+# scalar_analysis()
 
 # ## TABLE WITH MEANS AND ANOVA (ANOVA USE LIST OF MEANS NOT RAW DATA??)
 # comparison_df = compare_means(GROUP_PATHS, 'velocity_2d_mm')
@@ -787,7 +924,7 @@ extracted = extract_scalars()
 # plot_trace(extract_scalars(GROUP_PATHS[0], save_to_csv=False, raw=True), plot_style='seperate')
 
 
-save_csv(GROUP_PATHS, destination='../scalar_csv')
+# save_csv(GROUP_PATHS, destination='../scalar_csv')
 
 ### SYLLABLE ANALYSIS ###
 
@@ -795,20 +932,27 @@ save_csv(GROUP_PATHS, destination='../scalar_csv')
 SYLLABLE_MAP = get_syllable_map(syllable_info_path, info=['label', 'desc'])
 
 # ## PLOT OVERALL SYLLABLE USAGE
-# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'usage')))
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_prob), 'usage')))
 
 # ## PLOT OVERALL VELOCITY
-# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
+# plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_prob), 'velocity_2d_mm_mean')), titles=['Average Syllable 2d Velocity', 'Syllable', 'Velocity'])
 # plot_syllable_sums(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), titles=['Spots', 'Syllable', 'Trace'], plot_type='scatter')
 
 # SYLLABLE LOCATIONS
-# arrays, headers = get_location_arrays(sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_x_px_mean')), sum_groups(syllable_sort(read_df(mean_df_path_usage_nums), 'centroid_y_px_mean')), return_headers=True)
+# arrays, headers = get_location_arrays(sum_groups(syllable_sort(read_df(mean_df_path_usage_prob), 'centroid_x_px_mean')), sum_groups(syllable_sort(read_df(mean_df_path_usage_prob), 'centroid_y_px_mean')), return_headers=True)
 # plot_syllable_locations(arrays, headers)
 
 
 # # ## PRINT SYLLABLE OVERVIEW
-# syllable_dict = syllable_overview(read_df(mean_df_path_usage_nums), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
+syllable_dict = syllable_overview(read_df(mean_df_path_usage_prob), ["usage", "duration", "velocity_2d_mm_mean", "velocity_3d_mm_mean", "height_ave_mm_mean", "dist_to_center_px_mean"])
 # print_syllable_overview(syllable_dict, names=True)
+# go_mask = create_mask(syllable_dict, search_for='GO')
+# stop_mask = create_mask(syllable_dict, search_for='STOP')
+# stat_calc(add_syllables(syllable_dict, mask=go_mask))
+# stat_calc(add_syllables(syllable_dict, mask=stop_mask))
+
+stat_calc(add_syllables(syllable_dict))
+
 
 # ## PLOT SYLLABLE OVERVIEW
 # rapid_plot(mean_df_path_usage_prob, 'usage', title='label')
